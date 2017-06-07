@@ -3289,6 +3289,8 @@ public:
     //! wParam and \a lParam.
     long SendScintilla(unsigned int msg, unsigned long wParam = 0,
             long lParam = 0) const;
+    long SendScintilla(unsigned int msg, unsigned long wParam,
+            long lParam, long additionalParameter) const;
 
     //! \overload
     long SendScintilla(unsigned int msg, unsigned long wParam,
@@ -3549,6 +3551,7 @@ protected:
 
     //! Re-implemented to handle key presses.
     virtual void keyPressEvent(QKeyEvent *e);
+    virtual void keyPressEventChild(QKeyEvent *e) = 0;
 
     //! Re-implemented to handle composed characters.
     virtual void inputMethodEvent(QInputMethodEvent *event);
@@ -3559,6 +3562,7 @@ protected:
 
     //! Re-implemented to handle mouse moves.
     virtual void mouseMoveEvent(QMouseEvent *e);
+    virtual void mouseMoveEventChild(QMouseEvent *e) = 0;
 
     //! Re-implemented to handle mouse presses.
     virtual void mousePressEvent(QMouseEvent *e);

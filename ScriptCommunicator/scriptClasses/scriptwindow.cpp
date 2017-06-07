@@ -140,6 +140,18 @@ ScriptWindow::ScriptWindow(MainWindow* mainWindow, MainInterfaceThread *thread, 
 
     connect(m_userInterface->tableWidget->horizontalHeader(), SIGNAL(sectionResized(int, int, int)), this, SLOT(resizeTableColumnsSlot()));
 
+    QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+1"), this);
+    QObject::connect(shortcut, SIGNAL(activated()), this, SLOT(startButtonPressedSlot()));
+
+    shortcut = new QShortcut(QKeySequence("Ctrl+2"), this);
+    QObject::connect(shortcut, SIGNAL(activated()), this, SLOT(pauseButtonPressedSlot()));
+
+    shortcut = new QShortcut(QKeySequence("Ctrl+3"), this);
+    QObject::connect(shortcut, SIGNAL(activated()), this, SLOT(stopButtonPressedSlot()));
+
+    shortcut = new QShortcut(QKeySequence("Ctrl+Shift+X"), this);
+    QObject::connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
+
     connect(this->m_userInterface->startPushButton, SIGNAL(clicked()), this, SLOT(startButtonPressedSlot()));
     connect(this->m_userInterface->pausePushButton, SIGNAL(clicked()), this, SLOT(pauseButtonPressedSlot()));
     connect(this->m_userInterface->stopPushButton, SIGNAL(clicked()), this, SLOT(stopButtonPressedSlot()));
@@ -274,7 +286,7 @@ void ScriptWindow::startCommandLineScripts(void)
     m_userInterface->tableWidget->resizeColumnsToContents();
     resizeTableColumnsSlot();
 
-    setWindowTitle("ScriptCommunicator command-line mode");
+    setTitle("command-line mode");
 
     resizeTableColumnsSlot();
 
@@ -431,12 +443,22 @@ void ScriptWindow::createNewTableRow()
 }
 
 /**
+ * Sets the window title.
+ * @param extraString
+ *      The string which is appended at the title.
+ */
+void ScriptWindow::setTitle(QString extraString)
+{
+    setWindowTitle("ScriptCommunicator " + MainWindow::VERSION + " - Scripts " + extraString);
+}
+
+/**
  * Loads the saved script table content from file.
  */
 void ScriptWindow::loadTableData(void)
 {
 
-    setWindowTitle(m_currentScriptConfigFileName);
+    setTitle(m_currentScriptConfigFileName);
 
     m_userInterface->tableWidget->setRowCount(0);
 
@@ -456,7 +478,7 @@ void ScriptWindow::loadTableData(void)
                     QMessageBox::critical(this, "parse error", "could not parse " + m_currentScriptConfigFileName);
 
                     m_currentScriptConfigFileName = "";
-                    setWindowTitle(m_currentScriptConfigFileName);
+                    setTitle(m_currentScriptConfigFileName);
                     emit configHasToBeSavedSignal();
                 }
             }
@@ -565,7 +587,7 @@ void ScriptWindow::loadTableData(void)
             QMessageBox::critical(this, "could not open file", m_currentScriptConfigFileName);
 
             m_currentScriptConfigFileName = "";
-            setWindowTitle(m_currentScriptConfigFileName);
+            setTitle(m_currentScriptConfigFileName);
             emit configHasToBeSavedSignal();
         }
 
@@ -598,7 +620,7 @@ void ScriptWindow::saveTable(void)
         QMessageBox::critical(this, "save failed", m_currentScriptConfigFileName);
 
         m_currentScriptConfigFileName = "";
-        setWindowTitle(m_currentScriptConfigFileName);
+        setTitle(m_currentScriptConfigFileName);
         emit configHasToBeSavedSignal();
     }
 }
@@ -718,7 +740,11 @@ void ScriptWindow::tableDropEventSlot(int row, int column, QStringList files)
     {
         if(!el.isEmpty())
         {
+#ifdef Q_OS_MAC
+            addScript("/" + el);
+#else
             addScript(el);
+#endif
         }
     }
 }
@@ -757,12 +783,12 @@ void ScriptWindow::removeScriptSlot()
 void ScriptWindow::loadConfigSlot()
 {
     QString tmpFileName = QFileDialog::getOpenFileName(this, tr("Open script config file"),
-                                                       m_mainWindow->getAndCreateProgramUserFolder(), tr("XML files (*.xml);;Files (*)"));
+                                                       m_mainWindow->getAndCreateProgramUserFolder(), tr("script config files (*.scripts);;Files (*)"));
     if(!tmpFileName.isEmpty())
     {
         m_currentScriptConfigFileName = tmpFileName;
         emit configHasToBeSavedSignal();
-        setWindowTitle(m_currentScriptConfigFileName);
+        setTitle(m_currentScriptConfigFileName);
         m_userInterface->tableWidget->setRowCount(0);
         loadTableData();
     }
@@ -788,7 +814,7 @@ void ScriptWindow::checkTableChanged()
             else
             {
                 m_currentScriptConfigFileString = "";
-                setWindowTitle(m_currentScriptConfigFileName);
+                setTitle(m_currentScriptConfigFileName);
             }
         }
         else
@@ -808,7 +834,7 @@ void ScriptWindow::unloadConfigSlot()
     m_userInterface->tableWidget->setRowCount(0);
     m_currentScriptConfigFileString = "";
     m_currentScriptConfigFileName = "";
-    setWindowTitle(m_currentScriptConfigFileName);
+    setTitle(m_currentScriptConfigFileName);
     emit configHasToBeSavedSignal();
     emit scriptTableHasChangedSignal();
 }
@@ -874,7 +900,7 @@ void ScriptWindow::editUiSlot()
     {
         QString program;
 #ifdef Q_OS_LINUX
-        program = "./designer";
+        program = QCoreApplication::applicationDirPath() + "/designer";
 #elif defined Q_OS_MAC
 
         QFileInfo fi("/Applications/Qt Creator.app");
@@ -904,7 +930,7 @@ void ScriptWindow::editUiSlot()
 
         return;
 #else
-        program = "./designer.exe";
+        program = QCoreApplication::applicationDirPath() + "/designer.exe";
 #endif
         QStringList arguments;
         arguments << m_userInterface->tableWidget->item(selectedRow, COLUMN_UI_PATH)->text() ;
@@ -934,11 +960,11 @@ void ScriptWindow::editUiSlot()
 void ScriptWindow::saveConfigAsSlot()
 {
     QString tmpFileName = QFileDialog::getSaveFileName(this, tr("Save script config file"),
-                                                       m_mainWindow->getAndCreateProgramUserFolder(), tr("XML files (*.xml);;Files (*)"));
+                                                       m_mainWindow->getAndCreateProgramUserFolder(), tr("script config files (*.scripts);;Files (*)"));
     if(!tmpFileName.isEmpty())
     {
         m_currentScriptConfigFileName = tmpFileName;
-        setWindowTitle(m_currentScriptConfigFileName);
+        setTitle(m_currentScriptConfigFileName);
         emit configHasToBeSavedSignal();
         saveTable();
     }
@@ -1352,6 +1378,7 @@ void ScriptWindow::startScriptThread(int selectedRow, bool withDebugger)
     {//This row has no thread.
 
         ScriptThread* thread = 0;
+        QString scriptFileName = m_userInterface->tableWidget->item(selectedRow, COLUMN_SCRIPT_PATH)->text();
 
         if(m_userInterface->tableWidget->item(selectedRow, COLUMN_UI_PATH)->text() != 0)
         {//This script has a user interface.
@@ -1391,8 +1418,7 @@ void ScriptWindow::startScriptThread(int selectedRow, bool withDebugger)
         }
         else
         {
-            thread = new ScriptThread(this, m_sendIdCounter,
-                                      m_userInterface->tableWidget->item(selectedRow, COLUMN_SCRIPT_PATH)->text(),0,
+            thread = new ScriptThread(this, m_sendIdCounter,scriptFileName,0,
                                       m_mainWindow->getSettingsDialog(), withDebugger);
         }
 
@@ -1629,13 +1655,13 @@ void ScriptWindow::itemSelectionChangedSlot(void)
 
         if(m_userInterface->tableWidget->item(selectedRow, COLUMN_UI_PATH)->text().size() == 0)
         {
-            m_userInterface->actionEditUi->setText("new ui");
+            m_userInterface->actionEditUi->setText("New ui");
             m_userInterface->actionEditUi->setShortcut(QKeySequence("Ctrl+Shift+N"));
             m_userInterface->actionRemoveUi->setEnabled(false);
         }
         else
         {
-            m_userInterface->actionEditUi->setText("edit ui");
+            m_userInterface->actionEditUi->setText("Edit ui");
             m_userInterface->actionEditUi->setShortcut(QKeySequence("Ctrl+Shift+E"));
             m_userInterface->actionRemoveUi->setEnabled(true);
 

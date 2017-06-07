@@ -423,6 +423,9 @@
          <property name="toolTip">
           <string>ScripCommunicator executable file</string>
          </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
        <item row="0" column="1">
@@ -461,7 +464,7 @@
    </property>
    <widget class="QMenu" name="menuConfig">
     <property name="title">
-     <string>Config</string>
+     <string>&amp;Config</string>
     </property>
     <addaction name="actionLoadConfig"/>
     <addaction name="actionUnloadConfig"/>
@@ -470,7 +473,7 @@
    </widget>
    <widget class="QMenu" name="menuGenerate">
     <property name="title">
-     <string>Generate</string>
+     <string>&amp;Generate</string>
     </property>
     <addaction name="actionGenerateFileSce"/>
     <addaction name="actionGenerateCompressedFile"/>
@@ -481,6 +484,9 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionLoadConfig">
    <property name="text">
+    <string>Load config</string>
+   </property>
+   <property name="toolTip">
     <string>load config</string>
    </property>
    <property name="shortcut">
@@ -489,6 +495,9 @@
   </action>
   <action name="actionSaveConfig">
    <property name="text">
+    <string>Save config</string>
+   </property>
+   <property name="toolTip">
     <string>save config</string>
    </property>
    <property name="shortcut">
@@ -497,6 +506,9 @@
   </action>
   <action name="actionSaveConfigAs">
    <property name="text">
+    <string>Save config as</string>
+   </property>
+   <property name="toolTip">
     <string>save config as</string>
    </property>
    <property name="shortcut">
@@ -505,6 +517,9 @@
   </action>
   <action name="actionUnloadConfig">
    <property name="text">
+    <string>Unload config</string>
+   </property>
+   <property name="toolTip">
     <string>unload config</string>
    </property>
    <property name="shortcut">
@@ -513,7 +528,7 @@
   </action>
   <action name="actionGenerateFileSce">
    <property name="text">
-    <string>generate file (.sce)</string>
+    <string>Generate file (.sce)</string>
    </property>
    <property name="toolTip">
     <string>generate sce file</string>
@@ -524,7 +539,7 @@
   </action>
   <action name="actionGenerateCompressedFile">
    <property name="text">
-    <string>generate compressed file (.scez)</string>
+    <string>Generate compressed file (.scez)</string>
    </property>
    <property name="toolTip">
     <string>generate scez file</string>
@@ -536,14 +551,14 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>DragDropLineEdit</class>
-   <extends>QLineEdit</extends>
-   <header location="global">mainwindow.h</header>
-  </customwidget>
-  <customwidget>
    <class>DragDropTableWidget</class>
    <extends>QTableWidget</extends>
    <header location="global">scriptwindow.h</header>
+  </customwidget>
+  <customwidget>
+   <class>DragDropLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">mainwindow.h</header>
   </customwidget>
  </customwidgets>
  <resources>

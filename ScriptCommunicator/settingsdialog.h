@@ -111,6 +111,16 @@ typedef struct
     QString proxyPassword;
 }SocketSetings;
 
+///The update settings.
+typedef struct
+{
+    quint8 proxySettings;
+    QString proxyIpAddress;
+    quint16 proxyPort;
+    QString proxyUserName;
+    QString proxyPassword;
+}UpdateSetings;
+
 ///Settings for a cheetah spi interface.
 typedef struct
 {
@@ -161,6 +171,9 @@ struct Settings
 
     ///The current tab index of the settings dialog tab widget.
     quint8 settingsDialogTabIndex;
+
+    ///The update settings.
+    UpdateSetings updateSettings;
 
     /**************Console settings**********************/
     ///True if the received data (main interface) shall be shown in the console.
@@ -419,6 +432,9 @@ public:
     ///Converts a pcan baudrate.
     static QString convertPcanBaudrate(quint16 baudrate);
 
+    ///Returns the user interface pointer.
+    Ui::SettingsDialog* getUserInterface(void){return m_userInterface;}
+
     ///In this event filter function the mouse pressed event for serialPortInfoListBox
     ///is intercepted and a scan for available serial port is done.
     ///The previous elements of serialPortInfoListBox are replaced by the result of the scan.
@@ -515,8 +531,11 @@ private slots:
     ///It updates the settings struct (m_currentSettings).
     void stateFromCheckboxChangedSlot(int state);
 
-    ///Is called if the user clickes a proxy radio button.
-    void proxyRadioButtonClickedSlot(void);
+    ///Is called if the user clickes a socket proxy radio button.
+    void socketProxyRadioButtonClickedSlot(void);
+
+    ///Is called if the user clickes a update proxy radio button.
+    void updateProxyRadioButtonClickedSlot(void);
 
     ///Slot function for the search script editor button.
     void searchScriptEditorButtonPressedSlot(void);
@@ -574,6 +593,9 @@ Q_SIGNALS:
 private:
     ///Fills the gui elements which correspond to the serial port.
     void fillSerialPortParameters();
+
+    ///Checks if the mixed console chekcbox can be activated.
+    void checkMixedConsoleCheckbox();
 
     ///Reads the information from all available serial port.
     QVector<QStringList> getSerialPortsInfo();

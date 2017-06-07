@@ -59,7 +59,7 @@ function dataReceivedSlot(data)
 		var consoleString = ""
 		if(UI_showAsAsciiCheckBox.isChecked())
 		{
-			consoleString = scriptThread.byteArrayToString(data);
+			consoleString = conv.byteArrayToString(data);
 		}
 		else
 		{
@@ -209,7 +209,7 @@ function readyReadSlot()
 		var consoleString = "";
 		if(UI_showAsAsciiCheckBox.isChecked())
 		{
-			consoleString = scriptThread.byteArrayToString(data);
+			consoleString = conv.byteArrayToString(data);
 		}
 		else
 		{
@@ -252,7 +252,7 @@ function saveUiSettings()
 	settings += "UI_showAsAsciiCheckBox=" + UI_showAsAsciiCheckBox.isChecked().toString() + "\r\n";
 	settings += "UI_scrollLockCheckBox=" + UI_scrollLockCheckBox.isChecked().toString() + "\r\n";
 	
-	scriptThread.writeFile("snif_convertUiSettings.txt", true, settings, true);
+	scriptFile.writeFile("snif_convertUiSettings.txt", true, settings, true);
 }
 
 function getValueOfStringArray(stringArray, key)
@@ -270,9 +270,9 @@ function getValueOfStringArray(stringArray, key)
 //Load the GUI settings.
 function loadUiSettings()
 {
-	if(scriptThread.checkFileExists("snif_convertUiSettings.txt"))
+	if(scriptFile.checkFileExists("snif_convertUiSettings.txt"))
 	{
-		var settings = scriptThread.readFile("snif_convertUiSettings.txt");
+		var settings = scriptFile.readFile("snif_convertUiSettings.txt");
 		var stringArray = settings.split("\r\n");
 		
 		UI_dataBitsBox.setCurrentText(getValueOfStringArray(stringArray, "UI_dataBitsBox"));

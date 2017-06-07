@@ -23,13 +23,19 @@ MainWindowHandleData::MainWindowHandleData(MainWindow *mainWindow, SettingsDialo
     m_textLogFile(), m_customLogFile(), m_textLogFileStream(&m_textLogFile), m_customLogFileStream(&m_customLogFile),
     m_bytesInUnprocessedConsoleData(0), m_bytesInStoredConsoleData(0), m_bytesSinceLastNewLineInConsole(0), m_bytesSinceLastNewLineInLog(0),
     m_customLogString(), m_customConsoleObject(0), m_customLogObject(0), m_customConsoleStrings(), m_customConsoleStoredStrings(),
-    m_numberOfBytesInCustomConsoleStrings(0), m_numberOfBytesInCustomConsoleStoredStrings(0), m_historySendIsInProgress(false), m_checkDebugWindowsIsClosed()
+    m_numberOfBytesInCustomConsoleStrings(0), m_numberOfBytesInCustomConsoleStoredStrings(0), m_historySendIsInProgress(false), m_checkDebugWindowsIsClosed(),
+    m_queuedReceivedData(), m_queuedReceivedDataTimer()
 {
     m_customConsoleObject = new CustomConsoleLogObject(m_mainWindow);
     m_customLogObject = new CustomConsoleLogObject(m_mainWindow);
 
     m_updateConsoleAndLogTimer = new QTimer(this);
+    m_updateConsoleAndLogTimer->setSingleShot(true);
     connect(m_updateConsoleAndLogTimer, SIGNAL(timeout()), this, SLOT(updateConsoleAndLog()));
+
+    m_queuedReceivedDataTimer.setSingleShot(true);
+    connect(&m_queuedReceivedDataTimer, SIGNAL(timeout()), this, SLOT(queuedDataReceivedSlot()));
+
 }
 
 /**
@@ -76,7 +82,6 @@ void MainWindowHandleData::updateConsoleAndLog(void)
     while(m_bytesInStoredConsoleData > settings->maxCharsInConsole)
     {
         int diff = m_bytesInStoredConsoleData - settings->maxCharsInConsole;
-
         if(diff >= m_storedConsoleData.at(0).data.length())
         {
             m_bytesInStoredConsoleData -= m_storedConsoleData.at(0).data.length();
@@ -118,11 +123,20 @@ void MainWindowHandleData::updateConsoleAndLog(void)
 
         }
 
-        while((m_numberOfBytesInCustomConsoleStoredStrings > (settings->maxCharsInConsole * 2)) && m_customConsoleStoredStrings.length() > 1)
+        //Limit the number of bytes in m_customConsoleStoredStrings.
+        while(m_numberOfBytesInCustomConsoleStoredStrings > (settings->maxCharsInConsole * 2))
         {
-            //Limit the number of bytes in m_customConsoleStoredStrings.
-            m_numberOfBytesInCustomConsoleStoredStrings -= m_customConsoleStoredStrings.first().length();
-            m_customConsoleStoredStrings.removeFirst();
+            int diff = m_numberOfBytesInCustomConsoleStoredStrings - (settings->maxCharsInConsole * 2);
+            if(diff >= m_customConsoleStoredStrings.at(0).length())
+            {
+                m_numberOfBytesInCustomConsoleStoredStrings -= m_customConsoleStoredStrings.first().length();
+                m_customConsoleStoredStrings.removeFirst();
+            }
+            else
+            {
+                m_customConsoleStoredStrings.first().remove(0, m_numberOfBytesInCustomConsoleStoredStrings - settings->maxCharsInConsole);
+                m_numberOfBytesInCustomConsoleStoredStrings -= m_numberOfBytesInCustomConsoleStoredStrings - settings->maxCharsInConsole;
+            }
         }
 
 
@@ -196,6 +210,11 @@ void MainWindowHandleData::appendDataToStoredData(QByteArray &data, bool isSend,
                 settings.logGenerateCustomLog = false;
                 settings.logDebugCustomLog = false;
                 m_settingsDialog->setAllSettingsSlot(settings, false);
+
+                if(m_customLogObject->scriptIsBlocked())
+                {
+                    QMessageBox::critical(m_mainWindow, "error in custom log script", settings.consoleScript + " is blocked or overloaded and has been disabled.");
+                }
             }
 
 
@@ -219,6 +238,12 @@ void MainWindowHandleData::appendDataToStoredData(QByteArray &data, bool isSend,
                 settings.consoleDebugCustomConsole= false;
                 m_settingsDialog->setAllSettingsSlot(settings, false);
                 m_mainWindow->inititializeTab();
+
+                if(m_customConsoleObject->scriptIsBlocked())
+                {
+                    QMessageBox::critical(m_mainWindow, "error in custom console script", settings.consoleScript + " is blocked or overloaded and has been disabled.");
+                }
+
             }
             else
             {
@@ -232,7 +257,8 @@ void MainWindowHandleData::appendDataToStoredData(QByteArray &data, bool isSend,
                 while(m_numberOfBytesInCustomConsoleStrings > (currentSettings->maxCharsInConsole * 2))
                 {//Limit the number of bytes in m_customConsoleStrings.
 
-                    if(m_customConsoleStrings.length() > 1)
+                    int diff = m_numberOfBytesInCustomConsoleStrings - (currentSettings->maxCharsInConsole * 2);
+                    if(diff >= m_customConsoleStrings.at(0).length())
                     {
                         m_numberOfBytesInCustomConsoleStrings -= m_customConsoleStrings.first().length();
                         m_customConsoleStrings.removeFirst();
@@ -241,10 +267,7 @@ void MainWindowHandleData::appendDataToStoredData(QByteArray &data, bool isSend,
                     {
                         m_customConsoleStrings.first().remove(0, m_numberOfBytesInCustomConsoleStrings - currentSettings->maxCharsInConsole);
                         m_numberOfBytesInCustomConsoleStrings -= m_numberOfBytesInCustomConsoleStrings - currentSettings->maxCharsInConsole;
-
                     }
-
-
                 }
 
                 if(m_bytesInStoredConsoleData != 0)
@@ -260,7 +283,8 @@ void MainWindowHandleData::appendDataToStoredData(QByteArray &data, bool isSend,
             while(m_bytesInUnprocessedConsoleData > currentSettings->maxCharsInConsole)
             {//m_bytesInUnprocessedConsoleData contains too much data.
 
-                if(m_unprocessedConsoleData.length() > 1)
+                int diff = m_bytesInUnprocessedConsoleData - currentSettings->maxCharsInConsole;
+                if(diff >= m_unprocessedConsoleData.at(0).data.length())
                 {
                     m_bytesInUnprocessedConsoleData -= m_unprocessedConsoleData.first().data.length();
                     m_unprocessedConsoleData.removeFirst();
@@ -1032,6 +1056,21 @@ void MainWindowHandleData::appendDataToLog(const QByteArray &data, bool isSend, 
 }
 
 /**
+ * Appends the queued received data to the stored data.
+ */
+void MainWindowHandleData::queuedDataReceivedSlot(void)
+{
+    m_queuedReceivedDataTimer.stop();
+    if(!m_queuedReceivedData.isEmpty())
+    {
+        m_receivedBytes += m_queuedReceivedData.size();
+        appendDataToStoredData(m_queuedReceivedData, false, false, m_mainWindow->m_isConnectedWithCan, false);
+        m_queuedReceivedData.clear();
+    }
+
+}
+
+/**
  * The slot is called if the main interface thread has received can messages.
  * This slot is connected to the MainInterfaceThread::canMessageReceivedSignal signal.
  * @param data
@@ -1039,8 +1078,11 @@ void MainWindowHandleData::appendDataToLog(const QByteArray &data, bool isSend, 
  */
 void MainWindowHandleData::dataReceivedSlot(QByteArray data)
 {
-    m_receivedBytes += data.size();
-    appendDataToStoredData(data, false, false, m_mainWindow->m_isConnectedWithCan, false);
+    m_queuedReceivedData.append(data);
+    if(!m_queuedReceivedDataTimer.isActive())
+    {
+        m_queuedReceivedDataTimer.start(1);
+    }
 }
 
 /**
@@ -1076,6 +1118,11 @@ void MainWindowHandleData::dataHasBeenSendSlot(QByteArray data, bool success, ui
     (void) id;
     if(success)
     {
+        if(!m_queuedReceivedData.isEmpty())
+        {
+            queuedDataReceivedSlot();
+        }
+
         m_sentBytes += data.size();
 
         if(m_mainWindow->m_isConnectedWithCan)

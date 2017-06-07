@@ -96,19 +96,18 @@ protected:
 ///Class for the consoles in the main window.
 class SendConsole : public QTextEdit
 {
+     Q_OBJECT
+
 public:
     explicit SendConsole(QWidget *parent = 0) : QTextEdit(parent), m_mainWindow(0)
     {
-
+        connect(this->document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(contentsChangeSlot(int,int,int)), Qt::QueuedConnection);
     }
 
     virtual ~SendConsole()
     {
 
     }
-
-    ///The user has pressed a key.
-    void keyPressEvent(QKeyEvent *event);
 
     ///The user scrolled within console.
     void wheelEvent(QWheelEvent *event);
@@ -118,6 +117,12 @@ public:
     {
         m_mainWindow = mainWindow;
     }
+
+
+public slots:
+
+    ///Is called if the document's content changes.
+   void contentsChangeSlot(int from, int charsRemoved, int charsAdded);
 
 private:
     ///Pointer to the main window.
@@ -139,7 +144,7 @@ class MainWindow : public QMainWindow
 
 public:
     explicit MainWindow(QStringList scripts, bool withScriptWindow, bool scriptWindowIsMinimized,
-                        QStringList extraPluginPaths, QStringList scriptArguments);
+                        QStringList extraPluginPaths, QStringList scriptArguments, QString configFile, QString iconFile);
     ~MainWindow();
 
     ///Hide pop-up menu on toolbar
@@ -150,6 +155,9 @@ public:
 
     ///The name of the intial main config file.
     static const QString INIT_MAIN_CONFIG_FILE;
+
+    ///Parses a API file and returns a semicolon separated list with all public functions, signals and properties.
+    static QString parseApiFile(QString name);
 
     ///Converts a byte array into his string representation (Byte 1 is converted into char '1'...).
     static QString byteArrayToNumberString(const QByteArray &data, bool isBinary,  bool isHex, bool withFormatBrackets, bool withLeadingZero = true,
@@ -331,6 +339,10 @@ public slots:
 
     ///Adds data to the main window send history.
     void addDataToMainWindowSendHistorySlot(QByteArray data);
+
+    ///Sets the main window and the ScriptCommunicator task bar icon.
+    ///Supported formats: .ico, .gif, .png, .jpeg, .tiff, .bmp, .icns.
+   void setMainWindowAndTaskBarIconSlot(QString iconFile);
 
 private slots:
 
@@ -530,7 +542,7 @@ private:
     void saveSettings();
 
     ///Loads the main configuration.
-    void loadSettings();
+    bool loadSettings();
 
     ///Write an XML element and his attributes to the XML stream.
     void writeXmlElement(QXmlStreamWriter& xmlWriter, QString elementName, std::map<QString, QString> &attributes);

@@ -28,6 +28,101 @@
 #include "colorWidgets/color_dialog.hpp"
 #include "qcontext2dcanvas.h"
 
+
+QWidget* createWidget(QString& type, QWidget* parent, bool insertedInTableWidget)
+{
+    QWidget* widget = NULL;
+
+    if(type == "ComboBox")
+    {
+        QComboBox* el = new QComboBox(parent);
+        if(insertedInTableWidget){el->setFrame(false);}
+        widget = el;
+    }
+    else if(type == "LineEdit")
+    {
+        QLineEdit* el = new QLineEdit(parent);
+        if(insertedInTableWidget){el->setFrame(false);}
+        widget = el;
+    }
+    else if(type == "Button")
+    {
+        QPushButton* el = new QPushButton(parent);
+        widget = el;
+    }
+    else if(type == "CheckBox")
+    {
+        QCheckBox* el = new QCheckBox(parent);
+        widget = el;
+    }
+    else if(type == "SpinBox")
+    {
+        QSpinBox* el = new QSpinBox(parent);
+        if(insertedInTableWidget){el->setFrame(false);}
+        widget = el;
+
+    }
+    else if(type == "DoubleSpinBox")
+    {
+        QDoubleSpinBox* el = new QDoubleSpinBox(parent);
+        if(insertedInTableWidget){el->setFrame(false);}
+        widget = el;
+
+    }
+    else if(type == "VerticalSlider")
+    {
+        QSlider* el = new QSlider(parent);
+        el->setOrientation(Qt::Vertical);
+        widget = el;
+
+    }
+    else if(type == "HorizontalSlider")
+    {
+        QSlider* el = new QSlider(parent);
+        el->setOrientation(Qt::Horizontal);
+        widget = el;
+    }
+    else if(type == "TimeEdit")
+    {
+        QTimeEdit* el = new QTimeEdit(parent);
+        if(insertedInTableWidget){el->setFrame(false);}
+        widget = el;
+
+    }
+    else if(type == "DateEdit")
+    {
+        QDateEdit* el = new QDateEdit(parent);
+        if(insertedInTableWidget){el->setFrame(false);}
+        widget = el;
+    }
+    else if(type == "DateTimeEdit")
+    {
+        QDateTimeEdit* el = new QDateTimeEdit(parent);
+        if(insertedInTableWidget){el->setFrame(false);}
+        widget = el;
+    }
+    else if(type == "TextEdit")
+    {
+        QTextEdit* el = new QTextEdit(parent);
+        widget = el;
+
+    }
+    else if(type == "Dial")
+    {
+        QDial* el = new QDial(parent);
+        widget = el;
+
+    }
+    else if(type == "CalendarWidget")
+    {
+        QCalendarWidget* el = new QCalendarWidget(parent);
+        widget = el;
+
+    }
+
+    return widget;
+}
+
 /**
  * Creates and inserts a script widget into a table cell.
  * @param scriptThread
@@ -60,105 +155,11 @@ void ScriptSlots::insertWidgetInToTableSlot(ScriptThread* scriptThread, QTableWi
     }
     if(item)
     {
-        if(type == "ComboBox")
+        QWidget* widget = createWidget(type, table, true);
+        if(widget)
         {
-            QComboBox* el = new QComboBox(table);
-            el->setFrame(false);
-            table->setCellWidget(row, column, el);
+            table->setCellWidget(row, column, widget);
             *succeeded = true;
-        }
-        else if(type == "LineEdit")
-        {
-            QLineEdit* el = new QLineEdit(table);
-            el->setFrame(false);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-        }
-        else if(type == "Button")
-        {
-            QPushButton* el = new QPushButton(table);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-        }
-        else if(type == "CheckBox")
-        {
-            QCheckBox* el = new QCheckBox(table);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-        }
-        else if(type == "SpinBox")
-        {
-            QSpinBox* el = new QSpinBox(table);
-            el->setFrame(false);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-
-        }
-        else if(type == "DoubleSpinBox")
-        {
-            QDoubleSpinBox* el = new QDoubleSpinBox(table);
-            el->setFrame(false);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-
-        }
-        else if(type == "VerticalSlider")
-        {
-            QSlider* el = new QSlider(table);
-            el->setOrientation(Qt::Vertical);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-
-        }
-        else if(type == "HorizontalSlider")
-        {
-            QSlider* el = new QSlider(table);
-            el->setOrientation(Qt::Horizontal);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-        }
-        else if(type == "TimeEdit")
-        {
-            QTimeEdit* el = new QTimeEdit(table);
-            el->setFrame(false);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-
-        }
-        else if(type == "DateEdit")
-        {
-            QDateEdit* el = new QDateEdit(table);
-            el->setFrame(false);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-        }
-        else if(type == "DateTimeEdit")
-        {
-            QDateTimeEdit* el = new QDateTimeEdit(table);
-            el->setFrame(false);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-        }
-        else if(type == "TextEdit")
-        {
-            QTextEdit* el = new QTextEdit(table);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-
-        }
-        else if(type == "Dial")
-        {
-            QDial* el = new QDial(table);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-
-        }
-        else if(type == "CalendarWidget")
-        {
-            QCalendarWidget* el = new QCalendarWidget(table);
-            table->setCellWidget(row, column, el);
-            *succeeded = true;
-
         }
         else
         {
@@ -659,43 +660,52 @@ void ScriptSlots::cellEnteredSlot(int row, int rowsel, int column, QTableWidget*
     if((QApplication::mouseButtons() != Qt::NoButton) &&
         !verticalScrollBarPressed && !horizontalScrollBarPressed)
     {
-        QList<QTableWidgetItem*> rowItems,rowItems1;
-        if((tableWidget->verticalHeaderItem(row) != 0) && (tableWidget->verticalHeaderItem(rowsel) != 0))
+        if(tableWidget->verticalHeaderItem(row) == 0)
         {
-
-            tableWidget->blockSignals(true);
-
-            QString savedHeaderText;
-            if(tableWidget->verticalHeader()->isVisible())
-            {
-                savedHeaderText = tableWidget->verticalHeaderItem(row)->text();
-            }
-
-            //remove all cells from the two rows which position have to be swapped
-            for (int col = 0; col < colCount; ++col)
-            {
-                rowItems << tableWidget->takeItem(row, col);
-                rowItems1 << tableWidget->takeItem(rowsel, col);
-
-            }
-
-            //insert all cells from the two rows which positions have to be swapped
-            //at their new positions
-            for (int cola = 0; cola < colCount; ++cola)
-            {
-                tableWidget->setItem(rowsel, cola, rowItems.at(cola));
-                tableWidget->setItem(row, cola, rowItems1.at(cola));
-            }
-
-            if(tableWidget->verticalHeader()->isVisible())
-            {
-                //Swap the vertical header labels.
-                tableWidget->verticalHeaderItem(row)->setText(tableWidget->verticalHeaderItem(rowsel)->text());
-                tableWidget->verticalHeaderItem(rowsel)->setText(savedHeaderText);
-            }
-
-            tableWidget->blockSignals(false);
+            QTableWidgetItem *headerItem = new QTableWidgetItem(QString("%1").arg(rowsel + 1));
+            tableWidget->setVerticalHeaderItem(row, headerItem);
         }
+
+        if(tableWidget->verticalHeaderItem(rowsel) == 0)
+        {
+            QTableWidgetItem *headerItem = new QTableWidgetItem(QString("%1").arg(rowsel + 1));
+            tableWidget->setVerticalHeaderItem(rowsel, headerItem);
+        }
+
+        QList<QTableWidgetItem*> rowItems,rowItems1;
+        tableWidget->blockSignals(true);
+
+        QString savedHeaderText;
+        if(tableWidget->verticalHeader()->isVisible())
+        {
+            savedHeaderText = tableWidget->verticalHeaderItem(row)->text();
+        }
+
+        //remove all cells from the two rows which position have to be swapped
+        for (int col = 0; col < colCount; ++col)
+        {
+            rowItems << tableWidget->takeItem(row, col);
+            rowItems1 << tableWidget->takeItem(rowsel, col);
+
+        }
+
+        //insert all cells from the two rows which positions have to be swapped
+        //at their new positions
+        for (int cola = 0; cola < colCount; ++cola)
+        {
+            tableWidget->setItem(rowsel, cola, rowItems.at(cola));
+            tableWidget->setItem(row, cola, rowItems1.at(cola));
+        }
+
+        if(tableWidget->verticalHeader()->isVisible())
+        {
+            //Swap the vertical header labels.
+            tableWidget->verticalHeaderItem(row)->setText(tableWidget->verticalHeaderItem(rowsel)->text());
+            tableWidget->verticalHeaderItem(rowsel)->setText(savedHeaderText);
+        }
+
+        tableWidget->blockSignals(false);
+
 
     }//if(QApplication::mouseButtons() != Qt::NoButton)
 
@@ -796,55 +806,62 @@ void ScriptSlots::addValidatorSignal(QValidator* validator, QLineEdit* lineEdit)
 }
 
 /**
- * Writes text to a text edit.
- * @param textEdit
- *      The text edit.
- * @param text
- *      The text.
- * @param insertHtml
- *      True if insertHtml shall be used.
- * @param insertText
- *      True if insertPlainText shall be used.
- * @param append
- *      True if append shall be used.
- * @param isLocked
- *      True if the scrolling is locked.
- * @param maxChars
- *      The max. characters for the text edit.
- * @param atTheEnd
- *      If true the the text is inserted at the end.
+ * Process stored operations from a ScriptTextEdit.
+ * @param m_storedOperations
+ *      The stored  operations.
  */
-void ScriptSlots::writeTextSlot(QTextEdit* textEdit, QString text, bool insertHtml, bool insertText, bool append,
-                                bool isLocked, quint32 maxChars, bool atTheEnd)
+void ScriptSlots::processStoredOperationsSlot(QTextEdit* textEdit, bool isLocked, quint32 maxChars,
+                                              QVector<ScriptTextEditStoredOperations_t>* m_storedOperations)
 {
-    //Store the scroll bar position.
-    int val = textEdit->verticalScrollBar()->value();
+    int pos = 0;
 
     textEdit->setUpdatesEnabled(false);
 
-    if(atTheEnd)textEdit->moveCursor(QTextCursor::End);
-
-    if(insertHtml)
+    if(isLocked)
     {
-        textEdit->insertHtml(text);
-    }
-    else if(insertText)
-    {
-        textEdit->insertPlainText(text);
-    }
-    else if(append)
-    {
-        textEdit->append(text);
+        //Store the scroll bar position.
+        pos = textEdit->verticalScrollBar()->value();
     }
 
-    if(atTheEnd)textEdit->moveCursor(QTextCursor::End);
+    for(auto el : *m_storedOperations)
+    {
+        if(el.atTheEnd)textEdit->moveCursor(QTextCursor::End);
 
-    MainWindow::limtCharsInTextEdit(textEdit, maxChars);
+        if(el.operation == SCRIPT_TEXT_EDIT_OPERATION_CLEAR)
+        {
+            textEdit->clear();
+        }
+        else if(el.operation == SCRIPT_TEXT_EDIT_OPERATION_INSERT_PLAIN_TEXT)
+        {
+            textEdit->insertPlainText(el.data);
+        }
+        else if(el.operation == SCRIPT_TEXT_EDIT_OPERATION_INSERT_HTML)
+        {
+            textEdit->insertHtml(el.data);
+        }
+        else if(el.operation == SCRIPT_TEXT_EDIT_OPERATION_APPEND)
+        {
+            textEdit->append(el.data);
+        }
+        else if(el.operation == SCRIPT_TEXT_EDIT_OPERATION_SET_PLAIN_TEXT)
+        {
+            textEdit->setPlainText(el.data);
+        }
+        else
+        {//SCRIPT_TEXT_EDIT_OPERATION_SET_TEXT
+
+            textEdit->setText(el.data);
+        }
+
+        MainWindow::limtCharsInTextEdit(textEdit, maxChars);
+
+        if(el.atTheEnd)textEdit->moveCursor(QTextCursor::End);
+    }
 
     if(isLocked)
     {
         //Restore the scroll bar position.
-        textEdit->verticalScrollBar()->setValue(val);
+        textEdit->verticalScrollBar()->setValue(pos);
     }
     else
     {   //Move the scroll bar to the end.
@@ -852,4 +869,49 @@ void ScriptSlots::writeTextSlot(QTextEdit* textEdit, QString text, bool insertHt
     }
 
     textEdit->setUpdatesEnabled(true);
+}
+
+
+///This function inserts one row at row and fills the cells with content.
+///Possible colors are: black, white, gray, red, green, blue, cyan, magenta and yellow.
+void ScriptSlots::insertRowWithContentSlot(int row, QStringList texts, QStringList backgroundColors, QStringList foregroundColors, QTableWidget* tableWidget)
+{
+    tableWidget->insertRow(row);
+
+    for(int i = 0; i < tableWidget->columnCount(); i++)
+    {
+        QTableWidgetItem *item = new QTableWidgetItem();
+        tableWidget->setItem(row, i, item);
+
+        if(i < texts.length())
+        {
+            item->setText(texts[i]);
+        }
+
+        if(i < backgroundColors.length())
+        {
+            item->setBackground(stringToGlobalColor(backgroundColors[i]));
+        }
+
+        if(i < foregroundColors.length())
+        {
+            item->setForeground(stringToGlobalColor(foregroundColors[i]));
+        }
+
+    }
+}
+
+/**
+ * Creates a shortcut.
+ * @param keys
+ *      The keys for the shortcut.
+ * @param parent
+ *      The parent widget of the shortcut.
+ * @param shortCut
+ *      The created shortcut.
+ */
+void ScriptSlots::createShortCutSlot(QString keys, QWidget *parent, QShortcut **shortCut)
+{
+    *shortCut = new QShortcut(QKeySequence(keys),parent);
+
 }

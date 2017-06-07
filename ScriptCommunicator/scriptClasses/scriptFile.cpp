@@ -27,6 +27,10 @@ void ScriptFile::intSignals(ScriptWindow *scriptWindow, bool runsInDebugger, boo
             scriptWindow->getMainWindow(), SLOT(showMessageBoxSlot(QMessageBox::Icon, QString, QString, QMessageBox::StandardButtons, QWidget*)),
             useBlockingSignals ? directConnectionType : Qt::QueuedConnection);
 
+    connect(this, SIGNAL(showYesNoDialogSignal(QMessageBox::Icon,QString,QString,QWidget*,bool*)),
+            scriptWindow->getMainWindow(), SLOT(showYesNoDialogSlot(QMessageBox::Icon,QString,QString,QWidget*,bool*)),
+            directConnectionType);
+
     connect(this, SIGNAL(disableMouseEventsSignal()),
             scriptWindow->getMainWindow(), SLOT(disableMouseEventsSlot()), useBlockingSignals ? directConnectionType : Qt::QueuedConnection);
 
@@ -126,7 +130,7 @@ QVector<unsigned char> ScriptFile::readBinaryFile(QString path, bool isRelativeP
 * * @param path
 *      The file path.
 * @param isRelativePath
-*      True if the file path is relative to the executable.
+*      True of path is a relative path.
 * @return
 *      The file size if the file exists. -1 if the file doesn't exists.
 *
@@ -225,7 +229,7 @@ QString ScriptFile::createAbsolutePath(QString fileName)
 }
 
 /**
- * Shows a script exception with a message box to the user.
+ * Shows a script exception (message box) to the user.
  * @param exception
  *      The script exception.
  * @param scriptPath
@@ -305,15 +309,40 @@ void ScriptFile::showExceptionInMessageBox(QScriptValue exception, QString scrip
  * @param isRelativePath
  *      True of scriptPath is a relative path.
  * @param scriptEngine
- *      Tje script engine
+ *      The script engine
+ * @param checkForUnsavedData
+ *      True if this function shall check for unsaved data.
+ * @param scriptShallBeStopped
+ *      True (out) if the script shall be stopped (user input). May be NULL.
  * @return
  *      True on success.
  */
-bool ScriptFile::loadScript(QString scriptPath, bool isRelativePath, QScriptEngine* scriptEngine, QWidget *parent, ScriptWindow *scriptWindow)
+bool ScriptFile::loadScript(QString scriptPath, bool isRelativePath, QScriptEngine* scriptEngine, QWidget *parent, ScriptWindow *scriptWindow,
+                            bool checkForUnsavedData, bool* scriptShallBeStopped)
 {
     bool hasSucceded = true;
 
     scriptPath = isRelativePath ? createAbsolutePath(scriptPath) : scriptPath;
+
+    if(checkForUnsavedData)
+    {
+        QString unsavedInfoFile = ScriptWindow::getUnsavedInfoFileName(scriptPath);
+        if(QFileInfo().exists(unsavedInfoFile))
+        {//The file has unsaved changes.
+
+            bool yesPressed = false;
+            emit showYesNoDialogSignal(QMessageBox::Warning,"Warning", scriptPath + " is opened by an instance of ScriptEditor and contains unsaved changes. Execute anyway?",
+                                       parent, &yesPressed);
+            if(!yesPressed)
+            {
+                if(scriptShallBeStopped)
+                {
+                    *scriptShallBeStopped = true;
+                }
+                return false;
+            }
+        }
+    }
 
     QFile scriptFile(scriptPath);
     if(!scriptFile.open(QIODevice::ReadOnly))
@@ -657,6 +686,34 @@ bool ScriptFile::zipDirectory(const QString& fileName, const QString sourceDirNa
 
     return zipFiles(fileName, fileList, progress, comment);
 }
+
+
+/**
+ * Adds files to a zip file.
+ * @param fileName
+ * The file name of the zip file.
+ * @param fileList
+ *      Contains all files. An entry consists of a string pair.
+ *      The first entry of this pair is the source file name (including the absolute file path) and the second
+ *      is the file name inside (including the relative path) the zip file.
+ * @param comment
+ *      The zip file comment.
+ * @return
+ *      True on success.
+ */
+bool ScriptFile::zipFiles(QString fileName, QVariantList fileList, QString comment)
+{
+    bool result = false;
+    QList<QStringList> createdList;
+
+    for(int i = 0; i < fileList.length(); i++)
+    {
+        createdList << fileList[i].toStringList();
+    }
+    result = zipFiles(fileName, createdList, 0, comment);
+    return result;
+}
+
 /**
  * Adds files to a zip file.
  * @param fileName

@@ -1,11 +1,11 @@
-/*************************************************************************
+﻿/*************************************************************************
 This worker script (worker scripts can be added in the script window) demonstrates the the gui 
 functionalities which can be used by a worker script. 
 ***************************************************************************/
 //Is called if this script shall be exited.
 function stopScript() 
 {
-    scriptThread.appendTextToConsole("script gui example stopped ");
+    scriptThread.appendTextToConsole("script gui example stopped: " + scriptThread.getTimestamp());
 }
 
 //the user has changed the item index
@@ -92,16 +92,20 @@ function DialogFinished(e)
 
 function NewElementsButtonButtonClicked()
 {
+	UI_testTextEdit.append("NewElementsButtonButtonClicked: " + this.isCheckable() + "  " + this.isChecked());
+	UI_testTextEdit.append("NewElementsButtonButtonClicked: " + this.getObjectName());
+	UI_testTextEdit.append("NewElementsButtonButtonClicked: " + testButton.getObjectName());
+	UI_testTextEdit.append("NewElementsButtonButtonClicked: " + UI_NewElementsButton.getObjectName());
 	
 	var input = scriptThread.showTextInputDialog("Enter name", "item name", "newItem", UI_Dialog.getWidgetPointer())
 	
 	if(input != "")
 	{
-		UI_sendListWidget.insertNewItem(UI_sendListWidget.rowCount(), input, scriptThread.createAbsolutePath("icons/folder.gif"));
+		UI_sendListWidget.insertNewItem(UI_sendListWidget.rowCount(), input, scriptFile.createAbsolutePath("icons/folder.gif"));
 		
 		var treeItem1 = UI_treeWidget.createScriptTreeWidgetItem();
 		treeItem1.setText(0, input);
-		treeItem1.setItemIcon(0, scriptThread.createAbsolutePath("icons/openfolder.gif"));
+		treeItem1.setItemIcon(0, scriptFile.createAbsolutePath("icons/openfolder.gif"));
 		UI_treeWidget.addTopLevelItem(treeItem1);
 		
 		UI_testReceiveTableWidget.insertRow(UI_testReceiveTableWidget.rowCount() )
@@ -139,7 +143,7 @@ for(var i = 0; i < argList.length; i++)
 	UI_testTextEdit.append("script argument: " + argList[i]);
 }
 
-scriptThread.appendTextToConsole('script gui example started');
+scriptThread.appendTextToConsole('script gui example started:'  + scriptThread.getTimestamp());
 
 //create and delete a timer object
 var timer2 = scriptThread.createTimer()
@@ -151,16 +155,16 @@ UI_testTextEdit.append("Skript start");
 
 
 /********************************test the file api*********************/
-if(scriptThread.checkFileExists("testFileFromGuiExample.txt"))
+if(scriptFile.checkFileExists("testFileFromGuiExample.txt"))
 {
-	var fileContent = scriptThread.readFile("testFileFromGuiExample.txt");
+	var fileContent = scriptFile.readFile("testFileFromGuiExample.txt");
 	UI_testTextEdit.append(fileContent);
 }
 else
 {
-	UI_testTextEdit.append(scriptThread.createAbsolutePath("testFileFromGuiExample.txt") + " does not exist");
+	UI_testTextEdit.append(scriptFile.createAbsolutePath("testFileFromGuiExample.txt") + " does not exist");
 }
-scriptThread.writeFile("testFileFromGuiExample.txt", true, "test file content\r\nline 2", true);
+scriptFile.writeFile("testFileFromGuiExample.txt", true, "test file content\r\nline 2", true);
 /***********************************************************************/
 
 
@@ -210,8 +214,12 @@ UI_dateTimeEdit.dateTimeChangedSignal.connect(dateTimeEditTimeChanged);
 /***********************************************************************/
 
 //new elements
-UI_NewElementsButton.clickedSignal.connect(NewElementsButtonButtonClicked)
-UI_NewElementsButton.setIcon(scriptThread.createAbsolutePath("icons/new.png"));
+UI_NewElementsButton.clickedSignal.connect(UI_NewElementsButton, NewElementsButtonButtonClicked)
+UI_NewElementsButton.setCheckable(true);
+UI_NewElementsButton.setChecked(true);
+var testButton = UI_NewElementsButton;
+UI_NewElementsButton.setObjectName("testButton");
+UI_NewElementsButton.setIcon(scriptFile.createAbsolutePath("icons/new.png"));
 		
 //test text edit, checkbox, radio button
 scriptThread.loadScript("includedScripts/testLineEdit_CheckBox_RadioButton.js");

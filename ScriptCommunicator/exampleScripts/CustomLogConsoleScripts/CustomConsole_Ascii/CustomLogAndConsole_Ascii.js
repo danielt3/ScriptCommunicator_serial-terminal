@@ -51,11 +51,7 @@ function createString(data, timeStamp, type, isLog)
 	resultString += "  value: ";
 	
 	//Convert the received bytes (unsigned char) to an ascii string (char)
-	for(var i = 0; i < data.length; i++)
-	{
-		resultString += String.fromCharCode(data[i])
-	}
-	
+	resultString += conv.byteArrayToString(data);
 	if(!isLog)
 	{
 		//The console is a HTML console therefore following characters must be replaced with their HTML representation.

@@ -343,7 +343,7 @@
    </property>
    <widget class="QMenu" name="menuSequence">
     <property name="title">
-     <string>single sequences</string>
+     <string>&amp;Single Sequences</string>
     </property>
     <addaction name="action_new"/>
     <addaction name="separator"/>
@@ -362,7 +362,7 @@
    </widget>
    <widget class="QMenu" name="menuConfig">
     <property name="title">
-     <string>config</string>
+     <string>&amp;Config</string>
     </property>
     <addaction name="action_save"/>
     <addaction name="actionSave_as"/>
@@ -371,7 +371,7 @@
    </widget>
    <widget class="QMenu" name="menuCyclic_sequence">
     <property name="title">
-     <string>cyclic sequence</string>
+     <string>&amp;Cyclic Sequence</string>
     </property>
     <addaction name="actionAddCyclicScript"/>
     <addaction name="actionEditCyclicScript"/>
@@ -385,6 +385,9 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionEditScript">
    <property name="text">
+    <string>Edit sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>edit sequence script</string>
    </property>
    <property name="shortcut">
@@ -393,7 +396,10 @@
   </action>
   <action name="action_delete">
    <property name="text">
-    <string>&amp;delete sequence</string>
+    <string>&amp;Delete sequence</string>
+   </property>
+   <property name="toolTip">
+    <string>delete sequence</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+D</string>
@@ -401,7 +407,10 @@
   </action>
   <action name="action_save">
    <property name="text">
-    <string>&amp;save config</string>
+    <string>&amp;Save config</string>
+   </property>
+   <property name="toolTip">
+    <string>save config</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
@@ -409,11 +418,17 @@
   </action>
   <action name="actionSave_as">
    <property name="text">
+    <string>Save config as</string>
+   </property>
+   <property name="toolTip">
     <string>save config as</string>
    </property>
   </action>
   <action name="actionLoad">
    <property name="text">
+    <string>Load config</string>
+   </property>
+   <property name="toolTip">
     <string>load config</string>
    </property>
    <property name="shortcut">
@@ -422,16 +437,25 @@
   </action>
   <action name="actionUnload">
    <property name="text">
+    <string>Unload config</string>
+   </property>
+   <property name="toolTip">
     <string>unload config</string>
    </property>
   </action>
   <action name="actionRemoveScript">
    <property name="text">
+    <string>Remove sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>remove sequence script</string>
    </property>
   </action>
   <action name="action_new">
    <property name="text">
+    <string>New sequence</string>
+   </property>
+   <property name="toolTip">
     <string>new sequence</string>
    </property>
    <property name="shortcut">
@@ -440,6 +464,9 @@
   </action>
   <action name="actionAddSequenceScript">
    <property name="text">
+    <string>Add sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>add sequence script</string>
    </property>
    <property name="shortcut">
@@ -448,6 +475,9 @@
   </action>
   <action name="actionCreateSequenceScript">
    <property name="text">
+    <string>Create sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>create sequence script</string>
    </property>
    <property name="shortcut">
@@ -459,7 +489,7 @@
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>move down</string>
+    <string>Move down</string>
    </property>
    <property name="toolTip">
     <string>move sequence-table entry down</string>
@@ -473,7 +503,7 @@
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>move up</string>
+    <string>Move up</string>
    </property>
    <property name="toolTip">
     <string>move sequence-table entry up</string>
@@ -484,6 +514,9 @@
   </action>
   <action name="actionAddCyclicScript">
    <property name="text">
+    <string>Add sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>add sequence script</string>
    </property>
   </action>
@@ -492,6 +525,9 @@
     <bool>false</bool>
    </property>
    <property name="text">
+    <string>Edit sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>edit sequence script</string>
    </property>
   </action>
@@ -500,6 +536,9 @@
     <bool>false</bool>
    </property>
    <property name="text">
+    <string>Copy sequence from table</string>
+   </property>
+   <property name="toolTip">
     <string>copy sequence from table</string>
    </property>
    <property name="shortcut">
@@ -508,16 +547,25 @@
   </action>
   <action name="actionDebugSequenceScript">
    <property name="text">
+    <string>Debug sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>debug sequence script</string>
    </property>
   </action>
   <action name="actionDebugCyclicSequenceScript">
    <property name="text">
+    <string>Debug sequence script</string>
+   </property>
+   <property name="toolTip">
     <string>debug sequence script</string>
    </property>
   </action>
   <action name="actionEditAllSequenceScripts">
    <property name="text">
+    <string>Edit all sequence scripts</string>
+   </property>
+   <property name="toolTip">
     <string>edit all sequence scripts</string>
    </property>
    <property name="shortcut">

@@ -140,6 +140,17 @@ public slots:
     ///Slot function for sending data with main interface thread.
     void sendDataSlot(const QByteArray data, uint id);
 
+    ///Returns the state of the serial port signals (pins).
+    ///The signals are bit coded:
+    ///NoSignal = 0x00,
+    ///DataTerminalReadySignal = 0x04,
+    ///DataCarrierDetectSignal = 0x08,
+    ///DataSetReadySignal = 0x10,
+    ///RingIndicatorSignal = 0x20,
+    ///RequestToSendSignal = 0x40,
+    ///ClearToSendSignal = 0x80,
+    void getSerialPortSignals(uint32_t* bits){if(m_serial){*bits = (((quint32)m_serial->pinoutSignals()) & 0xfc);}}
+
 
 private slots:
 
@@ -188,7 +199,7 @@ private:
    void showMessageBox(QMessageBox::Icon icon, QString title, QString text);
 
     ///Sends data with the main interface.
-    bool sendDataWithTheMainInterface(const QByteArray &data, bool waitForSendingFinished);
+    bool sendDataWithTheMainInterface(const QByteArray &data, bool waitForSendingFinished, bool *serialPortSignalBlocked);
 
     ///If true, then the main interface thread shall exit.
     bool m_exit;

@@ -101,28 +101,13 @@ public:
     ///Returns a semicolon separated list with all public functions, signals and properties.
     virtual QString getPublicScriptElements(void)
     {
-        return "void appendTextToConsole(QString string, bool newLine=true, bool bringToForeground=false);"
-               "quint8 calculateCrc8(QVector<unsigned char> data);"
-               "quint8 calculateCrc8WithPolynomial(const QVector<unsigned char> data, const unsigned char polynomial, const unsigned char polynomial, const unsigned char startValue=0);"
-               "quint16 calculateCrc16(QVector<unsigned char> data);"
-               "quint32 calculateCrc32(QVector<unsigned char> data);quint64 calculateCrc64(QVector<unsigned char> data);"
-               "void setGlobalString(QString name, QString string);QString getGlobalString(QString name, bool removeValue=false);"
-               "void setGlobalDataArray(QString name, QVector<unsigned char> data);QVector<unsigned char> getGlobalDataArray(QString name, bool removeValue=false);"
-               "void setGlobalUnsignedNumber(QString name, quint32 number);QList<quint32> getGlobalUnsignedNumber(QString name,bool removeValue=false);"
-               "void setGlobalSignedNumber(QString name, qint32 number);QList<qint32> getGlobalSignedNumber(QString name,bool removeValue=false);"
-               "QString getCurrentVersion(void);void messageBox(QString icon, QString title, QString text);"
-               "bool showYesNoDialog(QString icon, QString title, QString text);QString showTextInputDialog(QString title, QString label, QString displayedText='');"
-               "QString showMultiLineTextInputDialog(QString title, QString label, QString displayedText='');"
-               "QString showGetItemDialog(QString title, QString label, QStringList displayedItems, int currentItemIndex=0, bool editable=false);"
-               "QList<int> showGetIntDialog(QString title, QString label, int initialValue, int min, int max, int step);"
-               "QList<double> showGetDoubleDialog(QString title, QString label, double initialValue, double min, double max, int decimals);"
-               "QList<int> showColorDialog(quint8 initInitalRed=255, quint8 initInitalGreen=255, quint8 initInitalBlue=255, quint8 initInitalAlpha=255, bool alphaIsEnabled=false);"
-               "void setBlockTime(quint32 blockTime);QStringList getAllObjectPropertiesAndFunctions(QScriptValue object)";
+        return MainWindow::parseApiFile("seq.api");
     }
 
     ///Appends text to the script window console.
     Q_INVOKABLE void appendTextToConsole(QString string, bool newLine=true, bool bringToForeground=false){ emit appendTextToConsoleSignal(string, newLine,bringToForeground);}
 
+    /****************Deprecated functions (replaced by the conv object)******************************************************/
     ///Converts a byte array which contains ascii characters into a ascii string (QString).
     Q_INVOKABLE QString byteArrayToString(QVector<unsigned char> data){return ScriptConverter::byteArrayToString(data);}
 
@@ -134,6 +119,7 @@ public:
 
     ///Adds an ascii string to a byte array.
     Q_INVOKABLE QVector<unsigned char> addStringToArray(QVector<unsigned char> array, QString str){return ScriptConverter::addStringToArray(array, str);}
+    /*************************************************************************************************************************/
 
     ///Calculates a crc8.
     Q_INVOKABLE static quint8 calculateCrc8(const QVector<unsigned char> data){return CRC::calculateCrc8(data);}

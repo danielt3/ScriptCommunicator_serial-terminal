@@ -31,7 +31,7 @@ function getExecutableName()
 
 
 var arguments = Array("arg1","arg2","arg3","arg4");
-var executable = scriptThread.getScriptFolder()+"/" + getExecutableName();
+var executable = scriptFile.getScriptFolder()+"/" + getExecutableName();
 scriptThread.appendTextToConsole("starting: " + executable);
 
 
@@ -52,11 +52,11 @@ else
 
 
 	var res = scriptThread.readAllStandardOutputFromProcess(process, true, String('\n').charCodeAt(0), 10000);
-	scriptThread.appendTextToConsole("stdout data:  " + scriptThread.byteArrayToString(res).replace("\n", ""));
+	scriptThread.appendTextToConsole("stdout data:  " + conv.byteArrayToString(res).replace("\n", ""));
 	
 	
 	var err = scriptThread.readAllStandardErrorFromProcess(process, true, String('\n').charCodeAt(0), 10000);
-	scriptThread.appendTextToConsole("stderr data: " + scriptThread.byteArrayToString(err).replace("\n", ""));
+	scriptThread.appendTextToConsole("stderr data: " + conv.byteArrayToString(err).replace("\n", ""));
 	
 	scriptThread.waitForFinishedProcess(process);
 	var exitCode = scriptThread.getProcessExitCode(process)

@@ -171,6 +171,13 @@ long QsciScintillaBase::SendScintilla(unsigned int msg, unsigned long wParam,
     return sci->WndProc(msg, wParam, lParam);
 }
 
+// Send a message to the real Scintilla widget using the low level Scintilla
+// API.
+long QsciScintillaBase::SendScintilla(unsigned int msg, unsigned long wParam,
+        long lParam, long additionalParameter) const
+{
+    return sci->WndProc(msg, wParam, lParam, additionalParameter);
+}
 
 // Overloaded message send.
 long QsciScintillaBase::SendScintilla(unsigned int msg, unsigned long wParam,
@@ -411,6 +418,8 @@ void QsciScintillaBase::keyPressEvent(QKeyEvent *e)
     {
         QAbstractScrollArea::keyPressEvent(e);
     }
+
+    keyPressEventChild(e);
 }
 
 
@@ -557,6 +566,7 @@ void QsciScintillaBase::mouseDoubleClickEvent(QMouseEvent *e)
 void QsciScintillaBase::mouseMoveEvent(QMouseEvent *e)
 {
     sci->ButtonMove(QSCI_SCI_NAMESPACE(Point)(e->x(), e->y()));
+    mouseMoveEventChild(e);
 }
 
 

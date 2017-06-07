@@ -47,6 +47,9 @@ public:
     ///The index of source columm in the files table.
     static const qint32 COLUMN_SOURCE = 2;
 
+    ///Sets the window title.
+    void setTitle(QString extraString);
+
 signals:
     ///This signals is emitted if the global config (of the program) has to be saved.
     void configHasToBeSavedSignal(void);
@@ -140,9 +143,6 @@ private:
 
     ///Returns the sub directory which corresponds to the file type.
     QString getSubDirectoryFromType(QString type);
-
-    ///Deletes all sub directory from the file table.
-    void deleteAllSubDirectoriesFromFileTable(QString rootPath);
 
     ///Returns all library paths from the file table.
     QStringList getAllLibraryPathsFromFileTable();

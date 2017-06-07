@@ -111,6 +111,9 @@ public:
     ///Loads the saved script table content from file.
     void loadTableData(void);
 
+    ///Sets the window title.
+    void setTitle(QString extraString);
+
     ///Returns the splitter sizes.
     QList<int> getSplitterSizes(void);
 
@@ -161,6 +164,14 @@ public:
 
     ///The column (in the script table) in which the script thread pointer a inserted.
     static const int COLUMN_SCRIPT_THREAD_POINTER = 1;
+
+    ///Returns the tmp directory for a unsaved info files (created by ScriptEditor for script file which
+    ///have unsaved changes).
+    static QString getTmpDirectory(QString fileName){return QFileInfo(fileName).path() +"/.tmp";}
+
+    ///Returns the unsaved info file name for a script file (created by ScriptEditor for script file which
+    ///have unsaved changes)..
+    static QString getUnsavedInfoFileName(QString fileName){return getTmpDirectory(fileName) + "/" + QFileInfo(fileName).fileName() + ".unsaved";}
 
 signals:
 

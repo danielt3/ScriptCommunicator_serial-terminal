@@ -76,6 +76,7 @@ QsciScintilla::QsciScintilla(QWidget *parent)
              SLOT(handleModified(int,int,const char *,int,int,int,int,int,int,int)));
     connect(this,SIGNAL(SCN_CALLTIPCLICK(int)),
              SLOT(handleCallTipClick(int)));
+
     connect(this,SIGNAL(SCN_CHARADDED(int)),
              SLOT(handleCharAdded(int)));
     connect(this,SIGNAL(SCN_INDICATORCLICK(int,int)),
@@ -280,7 +281,7 @@ void QsciScintilla::handleCharAdded(int ch)
             autoIndentation(ch, pos);
 
     // See if we might want to start auto-completion.
-    if (!isCallTipActive() && acSource != AcsNone)
+    if (acSource != AcsNone)
         if (isStartChar(ch))
             startAutoCompletion(acSource, false, use_single == AcusAlways);
         else if (acThresh >= 1 && (isWordCharacter(ch) || ch == ']'))
@@ -296,43 +297,53 @@ bool QsciScintilla::isCallTipActive() const
 
 
 // Handle a possible change to any current call tip.
-void QsciScintilla::callTip()
+bool QsciScintilla::callTip(int startPos)
 {
     QsciAbstractAPIs *apis = lex->apis();
 
     if (!apis)
-        return;
+        return false;
 
     int pos, commas = 0;
     bool found = false;
     char ch;
 
-    pos = SendScintilla(SCI_GETCURRENTPOS);
-
-    // Move backwards through the line looking for the start of the current
-    // call tip and working out which argument it is.
-    while ((ch = getCharacter(pos)) != '\0')
+    if(startPos == -1)
     {
-        if (ch == ',')
-            ++commas;
-        else if (ch == ')')
-        {
-            int depth = 1;
+        pos = SendScintilla(SCI_GETCURRENTPOS);
+    }
+    else
+    {
+        pos = startPos;
+    }
 
-            // Ignore everything back to the start of the corresponding
-            // parenthesis.
-            while ((ch = getCharacter(pos)) != '\0')
-            {
-                if (ch == ')')
-                    ++depth;
-                else if (ch == '(' && --depth == 0)
-                    break;
-            }
-        }
-        else if (ch == '(')
+    if(startPos == -1)
+    {
+        // Move backwards through the line looking for the start of the current
+        // call tip and working out which argument it is.
+        while ((ch = getCharacter(pos)) != '\0')
         {
-            found = true;
-            break;
+            if (ch == ',')
+                ++commas;
+            else if (ch == ')')
+            {
+                int depth = 1;
+
+                // Ignore everything back to the start of the corresponding
+                // parenthesis.
+                while ((ch = getCharacter(pos)) != '\0')
+                {
+                    if (ch == ')')
+                        ++depth;
+                    else if (ch == '(' && --depth == 0)
+                        break;
+                }
+            }
+            else if (ch == '(')
+            {
+                found = true;
+                break;
+            }
         }
     }
 
@@ -340,25 +351,69 @@ void QsciScintilla::callTip()
     SendScintilla(SCI_CALLTIPCANCEL);
 
     // Done if there is no new call tip to set.
-    if (!found)
-        return;
+    if (!found && (startPos != -1))
+    {
+        pos = SendScintilla(SCI_WORDENDPOSITION, startPos, true);
+    }
 
     QStringList context = apiContext(pos, pos, ctPos);
 
     if (context.isEmpty())
-        return;
+        return false;
 
     // The last word is complete, not partial.
     context << QString();
 
     ct_cursor = 0;
     ct_shifts.clear();
-    ct_entries = apis->callTips(context, commas, call_tips_style, ct_shifts);
+
+
+    ct_entries.clear();
+
+    int line = SendScintilla(SCI_LINEFROMPOSITION, pos);
+    QString contextString = getContextString(line);
+    if(!contextString.isEmpty())
+    {
+        if(context[0] == "this")
+        {
+            context.pop_front();
+        }
+        QStringList oldTmpContext = contextString.split("::");
+        QStringList newTmpContext = oldTmpContext;
+        newTmpContext.append(context);
+        bool exit = false;
+
+        while(!exit && ct_entries.isEmpty())
+        {
+
+            if(oldTmpContext.size() == 0)
+            {
+                exit = true;
+            }
+
+            ct_entries = apis->callTips(newTmpContext, commas, call_tips_style, ct_shifts);
+
+            if(!exit)
+            {
+                oldTmpContext.pop_back();
+                newTmpContext = oldTmpContext;
+                newTmpContext.append(context);
+            }
+        }
+
+
+    }
+
+    if(ct_entries.isEmpty())
+    {
+        ct_entries = apis->callTips(context, commas, call_tips_style, ct_shifts);
+    }
+
 
     int nr_entries = ct_entries.count();
 
     if (nr_entries == 0)
-        return;
+        return false;
 
     if (maxCallTips > 0 && maxCallTips < nr_entries)
     {
@@ -403,7 +458,7 @@ void QsciScintilla::callTip()
 
     // Done if there is more than one call tip.
     if (nr_entries > 1)
-        return;
+        return true;
 
     // Highlight the current argument.
     const char *astart;
@@ -415,7 +470,7 @@ void QsciScintilla::callTip()
             ;
 
     if (!astart || !*++astart)
-        return;
+        return true;
 
     // The end is at the next comma or unmatched closing parenthesis.
     const char *aend;
@@ -440,6 +495,8 @@ void QsciScintilla::callTip()
 
     if (astart != aend)
         SendScintilla(SCI_CALLTIPSETHLT, astart - cts, aend - cts);
+
+    return true;
 }
 
 
@@ -529,8 +586,16 @@ QStringList QsciScintilla::apiContext(int pos, int &context_start,
             good_pos = pos;
             expecting = Word;
         }
+        else if(getCharacter(pos) == ' ')
+        {
+        }
         else
         {
+            char ch = SendScintilla(SCI_GETCHARAT, pos);
+            if(ch != ' ')
+            {
+                pos++;
+            }
             QString word = getWord(pos);
             if (word.isEmpty() || expecting == Separator)
                 break;
@@ -709,6 +774,8 @@ void QsciScintilla::startAutoCompletion(AutoCompletionSource acs,
 
     if(!context.isEmpty())
     {
+        int caret = SendScintilla(SCI_GETCURRENTPOS);
+
         // Get the last word's raw data and length.
         ScintillaBytes s = textAsBytes(context.last());
         last_data = s.data();
@@ -721,7 +788,54 @@ void QsciScintilla::startAutoCompletion(AutoCompletionSource acs,
         {
 
             if (apis)
-                apis->updateAutoCompletionList(context, wlist);
+            {
+                int line = SendScintilla(SCI_LINEFROMPOSITION, caret);
+                QString contextString = getContextString(line);
+
+                if(!contextString.isEmpty())
+                {
+                    if(context[0] == "this")
+                    {
+                        context.pop_front();
+                    }
+                    QStringList oldTmpContext = contextString.split("::");
+                    QStringList newTmpContext = oldTmpContext;
+                    newTmpContext.append(context);
+                    bool exit = false;
+
+                    while(!exit)
+                    {
+
+                        if(oldTmpContext.isEmpty())
+                        {
+                            exit = true;
+                        }
+
+                        QStringList tmpWlist;
+                        apis->updateAutoCompletionList(newTmpContext, tmpWlist);
+                        wlist.append(tmpWlist);
+
+                        if(!exit)
+                        {
+                            oldTmpContext.pop_back();
+                            newTmpContext = oldTmpContext;
+                            newTmpContext.append(context);
+                        }
+
+                        if(newTmpContext.isEmpty() || newTmpContext[0].isEmpty())
+                        {
+                            exit = true;
+                        }
+
+                    }
+
+
+                }
+                else
+                {
+                    apis->updateAutoCompletionList(context, wlist);
+                }
+            }
         }
 
         if (acs == AcsAll || acs == AcsDocument)
@@ -735,7 +849,6 @@ void QsciScintilla::startAutoCompletion(AutoCompletionSource acs,
 
             int pos = 0;
             int dlen = SendScintilla(SCI_GETLENGTH);
-            int caret = SendScintilla(SCI_GETCURRENTPOS);
             int clen = caret - start;
             char *orig_context = new char[clen + 1];
 
@@ -1660,6 +1773,7 @@ void QsciScintilla::handleModified(int pos, int mtype, const char *text,
 }
 
 
+
 // Zoom in a number of points.
 void QsciScintilla::zoomIn(int range)
 {
@@ -1996,6 +2110,13 @@ void QsciScintilla::setSelection(int lineFrom, int indexFrom, int lineTo,
     SendScintilla(SCI_SETSEL, positionFromLineIndex(lineFrom, indexFrom),
             positionFromLineIndex(lineTo, indexTo));
 }
+
+// Sets the current selection.
+void QsciScintilla::setSelectionFromPosition(int start, int end)
+{
+    SendScintilla(SCI_SETSEL, start, end);
+}
+
 
 
 // Set the background colour of selected text.
@@ -2347,6 +2468,13 @@ void QsciScintilla::getCursorPosition(int *line, int *index) const
 void QsciScintilla::setCursorPosition(int line, int index)
 {
     SendScintilla(SCI_GOTOPOS, positionFromLineIndex(line, index));
+}
+
+// Set the cursor position
+void QsciScintilla::setCursorPosition(const QPoint &pos)
+{
+    long chpos = SendScintilla(SCI_POSITIONFROMPOINTCLOSE, pos.x(), pos.y());
+    SendScintilla(SCI_GOTOPOS, chpos);
 }
 
 
@@ -2881,10 +3009,16 @@ void QsciScintilla::setIndicatorOutlineColor(const QColor &col, int indicatorNum
 void QsciScintilla::fillIndicatorRange(int lineFrom, int indexFrom,
         int lineTo, int indexTo, int indicatorNumber)
 {
+    int start = positionFromLineIndex(lineFrom, indexFrom);
+    int finish = positionFromLineIndex(lineTo, indexTo);
+    fillIndicatorRangeWithPosition(start, finish, indicatorNumber);
+}
+
+// Fill a range with an indicator (position based).
+void QsciScintilla::fillIndicatorRangeWithPosition(int start, int finish, int indicatorNumber)
+{
     if (indicatorNumber < INDIC_IME)
     {
-        int start = positionFromLineIndex(lineFrom, indexFrom);
-        int finish = positionFromLineIndex(lineTo, indexTo);
 
         // We ignore allocatedIndicators to allow any indicators defined
         // elsewhere (e.g. in lexers) to be set.
@@ -2909,10 +3043,16 @@ void QsciScintilla::fillIndicatorRange(int lineFrom, int indexFrom,
 void QsciScintilla::clearIndicatorRange(int lineFrom, int indexFrom,
         int lineTo, int indexTo, int indicatorNumber)
 {
+    int start = positionFromLineIndex(lineFrom, indexFrom);
+    int finish = positionFromLineIndex(lineTo, indexTo);
+    clearIndicatorRangeWithPosition(start, finish, indicatorNumber);
+}
+
+// Clear a range with an indicator.
+void QsciScintilla::clearIndicatorRangeWithPosition(int start, int finish, int indicatorNumber)
+{
     if (indicatorNumber < INDIC_IME)
     {
-        int start = positionFromLineIndex(lineFrom, indexFrom);
-        int finish = positionFromLineIndex(lineTo, indexTo);
 
         // We ignore allocatedIndicators to allow any indicators defined
         // elsewhere (e.g. in lexers) to be set.
@@ -4091,12 +4231,12 @@ QString QsciScintilla::wordAtPoint(const QPoint &point) const
 
 
 // Return the word at the given position.
-QString QsciScintilla::wordAtPosition(int position) const
+QString QsciScintilla::wordAtPosition(int position, bool allowDot) const
 {
     if (position < 0)
         return QString();
 
-    long start_pos = SendScintilla(SCI_WORDSTARTPOSITION, position, true);
+    long start_pos = SendScintilla(SCI_WORDSTARTPOSITION, position, true, (long)allowDot);
     long end_pos = SendScintilla(SCI_WORDENDPOSITION, position, true);
     int word_len = end_pos - start_pos;
 
@@ -4356,17 +4496,21 @@ void QsciScintilla::wheelEvent(QWheelEvent* event)
     {
         if (event->delta() > 0)
         {
+            emit zoomInSignal();
+            /*
             QFont font = lexer()->font(0);
             font.setPointSize(font.pointSize() + 1);
-            lexer()->setFont(font, -1);
+            lexer()->setFont(font, -1);*/
 
 
         }
         else if(event->delta()<0)
         {
+            /*
             QFont font = lexer()->font(0);
             font.setPointSize(font.pointSize() - 1);
-            lexer()->setFont(font, -1);
+            lexer()->setFont(font, -1);*/
+            emit zoomOutSignal();
         }
 
         event->accept();

@@ -32,3 +32,5 @@ Makefile*
 
 ### QtCtreator CMake
 CMakeLists.txt.user
+ScriptCommunicator/exampleScripts/WorkerScripts/Gui/testFileFromGuiExample.txt
+ScriptCommunicator/ScriptEditor/test/test.js

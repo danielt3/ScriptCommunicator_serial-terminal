@@ -90,6 +90,11 @@ QString QsciAPIsPrepared::apiBaseName(const QString &api)
     QString base = api;
     int tail = base.indexOf('(');
 
+    if (tail == -1)
+    {//Possibly a property.
+        tail = base.indexOf("\n");
+    }
+
     if (tail >= 0)
         base.truncate(tail);
 
@@ -172,7 +177,6 @@ void QsciAPIsWorker::run()
             break;
 
         QStringList words = prepared->apiWords(a, wseps, true);
-
         for (int w = 0; w < words.count(); ++w)
         {
             const QString &word = words[w];
@@ -462,21 +466,58 @@ void QsciAPIs::updateAutoCompletionList(const QStringList &context,
 
         bool unambig = true;
         QStringList with_context;
+        QString apiSearchString;
+
+        /*
+        if((context[0].size() > 1) && (context[0] == "this"))
+        {
+            new_context.pop_front();
+        }
+        */
+
+        for(int i = 0; i < (new_context.size() - 1);)
+        {
+            apiSearchString += new_context[i];
+            i++;
+            if(i < (new_context.size() - 1))
+            {
+                apiSearchString += "::";
+            }
+        }
 
         if (new_context.last().isEmpty())
         {
+
             lastCompleteWord(new_context[new_context.count() - 2], with_context, unambig);
 
             if(with_context.isEmpty())
             {
-                lastCompleteWord(new_context[0], with_context, unambig);
+
+                if(new_context.size() >= 3)
+                {
+                    lastCompleteWord(new_context[new_context.size() - 3], with_context, unambig);
+
+                    if(!with_context.isEmpty() && apiSearchString.contains("["))
+                    {
+                        apiSearchString.remove("::" + new_context[new_context.size() - 2]);
+                    }
+                }
+
+                if(with_context.isEmpty())
+                {
+                    apiSearchString = new_context[new_context.size() - 2];
+                    lastCompleteWord(new_context[new_context.size() - 2], with_context, unambig);
+                }
+
             }
+
         }
         else
             lastPartialWord(new_context.last(), with_context, unambig);
 
         for (int i = 0; i < with_context.count(); ++i)
         {
+
             // Remove any unambigious context.
             QString noc = with_context[i];
 
@@ -484,30 +525,40 @@ void QsciAPIs::updateAutoCompletionList(const QStringList &context,
 
             if(noc.contains("("))
             {
-                for(auto el : context)
+                if(apiSearchString.isEmpty())
                 {
-                    isOk = noc.contains("(" + el + ")") ? true : false;
-                    if(isOk)
+                    for(auto el : context)
                     {
-                        break;
+                        isOk = noc.contains("(" + el + ")") ? true : false;
+                        if(isOk)
+                        {
+                            break;
+                        }
                     }
+                }
+                else
+                {
+                    isOk = noc.contains("(" + apiSearchString + ")") ? true : false;
                 }
 
             }
             else
             {
-                for(auto el : context)
+
+                if(new_context.size() == 1)
                 {
-                     isOk = noc.contains(el) ? true : false;
-                    if(isOk)
+                    for(auto el : context)
                     {
-                        break;
+                         isOk = noc.contains(el) ? true : false;
+                        if(isOk)
+                        {
+                            break;
+                        }
                     }
                 }
             }
 
-
-            if(isOk)
+           if(isOk)
             {
 
                 if (unambig)
@@ -778,11 +829,19 @@ QStringList QsciAPIs::callTips(const QStringList &context, int commas,
 
                     int tail = api.indexOf('(');
 
-                    if (tail < 0)
-                        continue;
+                    if(tail == -1)
+                    {//Possibly a property.
+                        tail = api.indexOf('\n');
 
-                    if (!enoughCommas(api, commas))
-                        continue;
+                        if (tail < 0)
+                            continue;
+                    }
+                    else
+                    {
+                        if (!enoughCommas(api, commas))
+                            continue;
+                    }
+
 
                     if (style == QsciScintilla::CallTipsNoContext)
                     {

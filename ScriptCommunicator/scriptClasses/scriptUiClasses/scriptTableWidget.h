@@ -106,6 +106,13 @@ public:
         connect(m_tableWidget, SIGNAL(itemSelectionChanged()), this, SIGNAL(cellSelectionChangedSignal()), Qt::QueuedConnection);
         connect(m_tableWidget, SIGNAL(cellEntered(int, int)), this, SLOT(stub_cellEnteredSlot(int, int)), Qt::DirectConnection);
 
+        connect(this, SIGNAL(insertRowSignal(int)), m_tableWidget, SLOT(insertRow(int)), directConnectionType);
+        connect(this, SIGNAL(insertColumnSignal(int)), m_tableWidget, SLOT(insertColumn(int)), directConnectionType);
+        connect(this, SIGNAL(removeRowSignal(int)), m_tableWidget, SLOT(removeRow(int)), directConnectionType);
+        connect(this, SIGNAL(removeColumnSignal(int)), m_tableWidget, SLOT(removeColumn(int)), directConnectionType);
+        connect(this, SIGNAL(clearSignal()), m_tableWidget, SLOT(clear()), directConnectionType);
+
+
         connect(this, SIGNAL(resizeColumnToContentsSignal(int,QTableWidget*)), scriptThread->getScriptWindow(),
                 SLOT(resizeColumnToContentsSlot(int,QTableWidget*)), directConnectionType);
         connect(this, SIGNAL(resizeRowToContentsSignal(int,QTableWidget*)), scriptThread->getScriptWindow(),
@@ -156,6 +163,9 @@ public:
         connect(this, SIGNAL(cellEnteredSignal(int,int,int,QTableWidget*)), scriptThread->getScriptWindow(),
                 SLOT(cellEnteredSlot(int,int,int,QTableWidget*)), Qt::DirectConnection);
 
+        connect(this, SIGNAL(insertRowWithContentSignal(int,QStringList,QStringList,QStringList,QTableWidget*)), scriptThread->getScriptWindow(),
+                SLOT(insertRowWithContentSlot(int,QStringList,QStringList,QStringList,QTableWidget*)), directConnectionType);
+
 
 
     }
@@ -168,24 +178,7 @@ public:
     ///Returns a semicolon separated list with all public functions, signals and properties.
     virtual QString getPublicScriptElements(void)
     {
-        return ScriptWidget::getPublicScriptElements() +
-                ";void setCellIcon(int row, int column, QString iconFileName);void setVerticalHeaderLabel(int row, QString text);"
-                "void setHorizontalHeaderLabel(int column, QString text);void setCellEditable(int row, int column, bool editable);"
-                "void setRowCount(int rows);int rowCount(void);"
-                "void setColumnCount(int columns);void setCellBackgroundColor(QString color, int row, int column);"
-                "void setCellForegroundColor(QString color, int row, int column);void resizeColumnToContents(int column);"
-                "void resizeRowToContents(int row);void setRowHeight(int row, int height);"
-                "int rowHeight(int row);void setColumnWidth(int column, int width);"
-                "int columnWidth(int column);int frameWidth(void);"
-                "int verticalHeaderWidth(void);int verticalScrollBarWidth(void);"
-                "bool isVerticalScrollBarVisible(void);void sortItems(int column, bool ascendingOrder=true);"
-                "void rowsCanBeMovedByUser(bool canBeMoved);QVector<ScriptTableCellPosition> getAllSelectedCells(void);"
-                "bool insertWidget(int row, int column, QString type);QScriptValue getWidget(int row, int column);"
-                "void insertRow(int row);void insertColumn(int column);"
-                "void removeRow(int row);void removeColumn(int column);"
-                "void clear(void);cellPressedSignal(int row, int column);cellClickedSignal(int row, int column);"
-                "cellDoubleClickedSignal(int row, int column);cellChangedSignal(int row, int column);"
-                "horizontalHeaderSectionResizedSignal(int logicalIndex, int oldSize, int newSize);cellSelectionChangedSignal(void)";
+        return MainWindow::parseApiFile("ScriptTableWidget.api");
     }
 
     ///Returns the text of one cell.
@@ -289,10 +282,14 @@ public:
     Q_INVOKABLE void setCellBackgroundColor(QString color, int row, int column)
     {
         QTableWidgetItem *item = m_tableWidget->item(row, column);
-        if(item)
+        if(item == 0)
         {
-            emit setCellBackgroundColorSignal(ScriptWindow::stringToGlobalColor(color), item);
+            item = new QTableWidgetItem();
+            emit setItemSignal(row, column,item, m_tableWidget);
         }
+
+        emit setCellBackgroundColorSignal(ScriptWindow::stringToGlobalColor(color), item);
+
     }
 
     ///Sets the foreground color of a single cell.
@@ -300,10 +297,14 @@ public:
     Q_INVOKABLE void setCellForegroundColor(QString color, int row, int column)
     {
         QTableWidgetItem *item = m_tableWidget->item(row, column);
-        if(item)
+        if(item == 0)
         {
-            emit setCellForegroundColorSignal(ScriptWindow::stringToGlobalColor(color), item);
+            item = new QTableWidgetItem();
+            emit setItemSignal(row, column,item, m_tableWidget);
         }
+
+        emit setCellForegroundColorSignal(ScriptWindow::stringToGlobalColor(color), item);
+
     }
 
 
@@ -502,25 +503,28 @@ public:
         return result;
     }
 
-
+    ///This function inserts one row at row and fills the cells with content.
+    ///Possible colors are: black, white, gray, red, green, blue, cyan, magenta and yellow.
+    Q_INVOKABLE void insertRowWithContent(int row, QStringList texts, QStringList backgroundColors, QStringList foregroundColors)
+    {emit insertRowWithContentSignal(row, texts, backgroundColors, foregroundColors, m_tableWidget);}
 
 
 public Q_SLOTS:
 
     ///This slot function inserts one row at row.
-    void insertRow(int row){m_tableWidget->insertRow(row);}
+    void insertRow(int row){emit insertRowSignal(row);}
 
     ///This slot function inserts one column at column.
-    void insertColumn(int column){m_tableWidget->insertColumn(column);}
+    void insertColumn(int column){emit insertColumnSignal(column);}
 
     ///This slot function removes the row at row.
-    void removeRow(int row){m_tableWidget->removeRow(row);}
+    void removeRow(int row){emit removeRowSignal(row);}
 
     ///This slot function removes the column at column.
-    void removeColumn(int column){m_tableWidget->removeColumn(column);}
+    void removeColumn(int column){emit removeColumnSignal(column);}
 
     ///This slot function clears the table (removes all cells).
-    void clear(void){m_tableWidget->clear();}
+    void clear(void){emit clearSignal();}
 
 
 Q_SIGNALS:
@@ -619,6 +623,29 @@ Q_SIGNALS:
     ///This signal is private and must not be used inside a script.
     void cellEnteredSignal(int row, int rowsel, int column, QTableWidget* tableWidget);
 
+    ///This signal is emitted in insertRow.
+    ///This signal is private and must not be used inside a script.
+    void insertRowSignal(int row);
+
+    ///This signal is emitted in insertColumn.
+    ///This signal is private and must not be used inside a script.
+    void insertColumnSignal(int column);
+
+    ///This signal is emitted in removeRow.
+    ///This signal is private and must not be used inside a script.
+    void removeRowSignal(int row);
+
+    ///This signal is emitted in removeColumn.
+    ///This signal is private and must not be used inside a script.
+    void removeColumnSignal(int column);
+
+    ///This signal is emitted in clear.
+    ///This signal is private and must not be used inside a script.
+    void clearSignal(void);
+
+    ///This signal is emitted in insertRowWithContent.
+    ///This signal is private and must not be used inside a script.
+    void insertRowWithContentSignal(int row, QStringList texts, QStringList backgroundColors, QStringList foregroundColors, QTableWidget* tableWidget);
 
 private Q_SLOTS:
 

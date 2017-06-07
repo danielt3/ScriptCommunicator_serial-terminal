@@ -45,7 +45,6 @@
 #include "scriptSlider.h"
 #include "scriptMainWindow.h"
 #include "scriptAction.h"
-#include "scriptStatusBar.h"
 #include "scriptTabWidget.h"
 #include "scriptGroupBox.h"
 #include "scriptRadioButton.h"
@@ -157,131 +156,10 @@ ScriptThread::~ScriptThread()
 ///Returns a semicolon separated list with all public functions, signals and properties.
 QString ScriptThread::getPublicScriptElements(void)
 {
-    return "void appendTextToConsole(QString string, bool newLine=true, bool bringToForeground=false);"
-           "void sleepFromScript(quint32 timeMs);"
-           "ScriptUdpSocket createUdpSocket(void);"
-           "ScriptTcpServer createTcpServer(void);"
-           "ScriptTcpClient createTcpClient(void);"
-           "ScriptTimer createTimer(void);"
-           "ScriptSerialPort createSerialPort(void);"
-           "ScriptSpiInterface createCheetahSpiInterface(void);"
-           "ScriptPcanInterface createPcanInterface(void);"
-           "ScriptPlotWindow createPlotWindow(void);"
-           "ScriptXmlReader createXmlReader(void);"
-           "ScriptXmlWriter createXmlWriter(void);"
-           "QString readFile(QString path, bool isRelativePath=true, quint64 startPosition=0, qint64 numberOfBytes=-1);"
-           "QVector<unsigned char> readBinaryFile(QString path, bool isRelativePath=true, quint64 startPosition=0, qint64 numberOfBytes=-1);"
-           "qint64 getFileSize(QString path, bool isRelativePath=true);"
-           "bool checkFileExists(QString path, bool isRelativePath=true);"
-           "bool checkDirectoryExists(QString directory, bool isRelativePath=true);"
-           "bool createDirectory(QString directory, bool isRelativePath=true);"
-           "bool renameDirectory(QString directory, QString newName);"
-           "bool renameFile(QString path, QString newName);"
-           "bool deleteFile(QString path, bool isRelativePath=true);"
-           "bool deleteDirectory(QString directory, bool isRelativePath=true);"
-           "bool deleteDirectoryRecursively(QString directory, bool isRelativePath=true);"
-           "QStringList readDirectory(QString directory, bool isRelativePath=true, bool recursive=true, bool returnFiles=true, bool returnDirectories=true);"
-           "bool writeFile(QString path, bool isRelativePath, QString content, bool replaceFile, qint64 startPosition=-1);"
-           "bool writeBinaryFile(QString path, bool isRelativePath, QVector<unsigned char> content, bool replaceFile, qint64 startPosition=-1);"
-           "QString createAbsolutePath(QString fileName);"
-           "QString getScriptFolder(void);"
-           "bool loadScript(QString scriptPath, bool isRelativePath=true);"
-           "bool zipDirectory(QString fileName, QString sourceDirName, QString comment="");"
-           "bool zipFiles(QString fileName, QVariantList fileList, QString comment="");"
-           "bool extractZipFile(QString fileName, QString destinationDirectory);"
-           "bool loadLibrary(QString path, bool isRelativePath=true);"
-           "bool sendDataArray(QVector<unsigned char> data, int repetitionCount=0, int pause=0, bool addToMainWindowSendHistory=false);"
-           "bool sendCanMessage(quint8 type, quint32 canId, QVector<unsigned char> data, int repetitionCount=0, int pause=0, bool addToMainWindowSendHistory=false);"
-           "bool sendString(QString string, int repetitionCount=0, int pause=0, bool addToMainWindowSendHistory=false);"
-           "bool isConnected(void);"
-           "bool isConnectedWithCan(void);"
-           "void disconnect(void);"
-           "bool connectPcan(quint8 channel, quint32 baudrate, quint32 connectTimeout = 2000, bool busOffAutoReset = true, bool powerSupply = false, bool filterExtended = true, quint32 filterFrom = 0, quint32 filterTo = 0x1fffffff);"
-           "void setSerialPortPins(bool setRTS, bool setDTR);"
-           "bool connectSerialPort(QString name, qint32 baudRate = 115200, quint32 connectTimeout= 1000, quint32 dataBits = 8, QString parity = 'None', QString stopBits = '1', QString flowControl = 'None');"
-           "bool connectSocket(bool isTcp, bool isServer, QString ip, quint32 destinationPort, quint32 ownPort, quint32 connectTimeout = 5000);"
-           "bool connectCheetahSpi(quint32 port, qint16 mode, quint32 baudrate, quint8 chipSelectBits = 1, quint32 connectTimeout = 1000);"
-           "void stopScript(void);"
-           "bool createProcessDetached(QString program, QStringList arguments, QString  workingDirectory);"
-           "int createProcess(QString program, QStringList arguments);"
-           "ScriptProcess createProcessAsynchronous(QString program, QStringList arguments, int startWaitTime=30000, QString workingDirectory="");"
-           "bool waitForFinishedProcess(ScriptProcess process, int waitTime=30000);"
-           "int getProcessExitCode(ScriptProcess process);"
-           "void killProcess(ScriptProcess process);"
-           "void terminateProcess(ScriptProcess process);"
-           "bool writeToProcessStdin(ScriptProcess process, QVector<unsigned char> data, int waitTime=30000);"
-           "QVector<unsigned char> readAllStandardOutputFromProcess(ScriptProcess process, bool isBlocking=false, quint8 blockByte='\n', qint32 blockTime=30000);"
-           "QVector<unsigned char> readAllStandardErrorFromProcess(ScriptProcess process, bool isBlocking=false,quint8 blockByte='\n', qint32 blockTime=30000);"
-           "bool loadUserInterfaceFile(QString path, bool isRelativePath=true, bool showAfterLoading = true);"
-           "bool scriptShallExit(void);"
-           "QStringList getLocalIpAdress(void);"
-           "QString showFileDialog(bool isSaveDialog, QString caption, QString dir, QString filter, QWidget* parent=0);"
-           "QString showDirectoryDialog(QString caption, QString dir, QWidget* parent=0);"
-           "void messageBox(QString icon, QString title, QString text, QWidget* parent=0);"
-           "bool showYesNoDialog(QString icon, QString title, QString text, QWidget* parent=0);"
-           "QString showTextInputDialog(QString title, QString label, QString displayedText="", QWidget* parent=0);"
-           "QString showMultiLineTextInputDialog(QString title, QString label, QString displayedText="", QWidget* parent=0);"
-           "QString showGetItemDialog(QString title, QString label, QStringList displayedItems, int currentItemIndex=0, bool editable=false, QWidget* parent=0);"
-           "QList<int> showGetIntDialog(QString title, QString label, int initialValue, int min, int max, int step, QWidget* parent=0);"
-           "QList<double> showGetDoubleDialog(QString title, QString label, double initialValue, double min, double max, int decimals, QWidget* parent=0);"
-           "QList<int> showColorDialog(quint8 initInitalRed=255, quint8 initInitalGreen=255, quint8 initInitalBlue=255, quint8 initInitalAlpha=255, bool alphaIsEnabled=false, QWidget* parent=0);"
-           "quint8 calculateCrc8(const QVector<unsigned char> data);"
-           "quint8 calculateCrc8WithPolynomial(const QVector<unsigned char> data, const unsigned char polynomial, , const unsigned char startValue=0);"
-           "quint16 calculateCrc16(const QVector<unsigned char> data);"
-           "quint32 calculateCrc32(const QVector<unsigned char> data);"
-           "quint64 calculateCrc64(const QVector<unsigned char> data);"
-           "bool showReceivedDataInConsoles(bool show);"
-           "bool showTransmitDataInConsoles(bool show);"
-           "void addMessageToLogAndConsoles(QString text, bool forceTimeStamp=false);"
-           "void setGlobalString(QString name, QString string);"
-           "QString getGlobalString(QString name, bool removeValue=false);"
-           "void setGlobalDataArray(QString name, QVector<unsigned char> data);"
-           "QVector<unsigned char> getGlobalDataArray(QString name, bool removeValue=false);"
-           "void setGlobalUnsignedNumber(QString name, quint32 number);"
-           "QList<quint32> getGlobalUnsignedNumber(QString name,bool removeValue=false);"
-           "void setGlobalSignedNumber(QString name, qint32 number);"
-           "QList<qint32> getGlobalSignedNumber(QString name,bool removeValue=false);"
-           "void setGlobalRealNumber(QString name, double number);"
-           "QList<double> getGlobalRealNumber(QString name, bool removeValue=false);"
-           "bool setScriptThreadPriority(QString priority);"
-           "QString getCurrentVersion(void);"
-           "void exitScriptCommunicator(void);"
-           "void setBlockTime(quint32 blockTime);"
-           "bool setScriptState(quint8 state, QString scriptTableEntryName);"
-           "QString getScriptTableName(void);"
-           "QString currentCpuArchitecture(void);"
-           "QString productType(void);"
-           "QString productVersion(void);"
-           "QStringList availableSerialPorts(void);"
-           "QStringList getScriptArguments(void);"
-           "QStringList getScriptArguments(void);"
-           "QString getScriptCommunicatorFolder(void);"
-           "QString getUserDocumentsFolder(void);"
-           "bool addTabsToMainWindow(ScriptTabWidget* tabWidget);"
-           "bool addToolBoxPagesToMainWindow(ScriptToolBox* scriptToolBox);"
-           "void sendReceivedDataToMainInterface(QVector<unsigned char> data);"
-           "bool checkScriptCommunicatorVersion(QString minVersion);"
-           "QStringList getAllObjectPropertiesAndFunctions(QScriptValue object, bool printInScriptWindowConsole=false);"
-           "QString getMainWindowTitle(void);void setMainWindowTitle(QString newTitle);"
-           "globalStringChangedSignal.connect(QString name, QString string);"
-           "globalDataArrayChangedSignal.connect(QString name, QVector<unsigned char> data);"
-           "globalUnsignedChangedSignal.connect(QString name, quint32 number);"
-           "globalSignedChangedSignal.connect(QString name, qint32 number);"
-           "globalRealChangedSignal.connect(QString name, double number);"
-           "dataReceivedSignal.connect(QVector<unsigned char> data);"
-           "canMessagesReceivedSignal.connect(QVector<quint8> types, QVector<quint32> messageIds, QVector<quint32> timestamps, QVector<QVector<unsigned char>>  data);"
-           "sendDataFromMainInterfaceSignal(QVector<unsigned char> data);getMainInterfaceSerialPortSettings(void);"
-           "getMainInterfaceSocketSettings(void);mainWindowClearConsoleClickedSignal(void);"
-           "mainWindowLockScrollingClickedSignal(bool isChecked)";
+    return MainWindow::parseApiFile("scriptThread.api");
 }
 
-///Sets the priority of the script thread (which executes the current script).
-///Possible values are:
-///- LowestPriority
-///- LowPriority
-///- NormalPriority
-///- HighPriority
-///- HighestPriority
+
 
 /**
  * Sets the priority of the script thread (which executes the current script).
@@ -428,6 +306,9 @@ void ScriptThread::run()
         connect(m_scriptWindow->m_mainWindow->getUserInterface()->actionLockScrolling, SIGNAL(toggled(bool)),
                 this, SLOT(mainWindowLockScrollingSlot(bool)), Qt::QueuedConnection);
 
+        connect(this, SIGNAL(setMainWindowAndTaskBarIconSignal(QString)),
+                m_scriptWindow->m_mainWindow, SLOT(setMainWindowAndTaskBarIconSlot(QString)), Qt::QueuedConnection);
+
         connect(this, SIGNAL(addToolBoxPagesToMainWindowSignal(QToolBox*)),
                 m_scriptWindow->m_mainWindow, SLOT(addToolBoxPagesToMainWindowSlot(QToolBox*)), Qt::QueuedConnection);
 
@@ -436,6 +317,10 @@ void ScriptThread::run()
 
         connect(this, SIGNAL(addDataToMainWindowSendHistorySignal(QByteArray)),
                 m_scriptWindow->m_mainWindow, SLOT(addDataToMainWindowSendHistorySlot(QByteArray)), Qt::QueuedConnection);
+
+
+        connect(this, SIGNAL(getSerialPortSignalsSignal(uint32_t*)),
+                m_scriptWindow->m_mainInterfaceThread, SLOT(getSerialPortSignals(uint32_t*)), directConnectionType);
 
 
         connect(this, SIGNAL(createGuiElementSignal(QString,QObject**, ScriptWindow*, ScriptThread*, QObject*)),
@@ -451,7 +336,7 @@ void ScriptThread::run()
                 m_settingsDialog, SLOT(setAllSettingsSlot(Settings&,bool)), directConnectionType);
 
         connect(this, SIGNAL(appendTextToConsoleSignal(QString, bool,bool)),
-                m_scriptWindow, SLOT(appendTextToConsoleSlot(QString, bool,bool)), directConnectionType);
+                m_scriptWindow, SLOT(appendTextToConsoleSlot(QString, bool,bool)), Qt::QueuedConnection);
 
         connect(m_scriptWindow->m_mainInterfaceThread, SIGNAL(dataReceivedSignal(QByteArray)),
                 this, SLOT(dataReceivedSlot(QByteArray)), Qt::QueuedConnection);
@@ -548,7 +433,8 @@ void ScriptThread::run()
         m_standardDialogs->intSignals(m_scriptWindow, m_scriptRunsInDebugger);
 
         m_scriptFileObject = new ScriptFile(this, m_scriptFileName);
-        m_scriptFileObject->intSignals(m_scriptWindow, m_scriptRunsInDebugger);
+        m_scriptFileObject->intSignals(m_scriptWindow, m_scriptEngine, m_scriptRunsInDebugger);
+        m_scriptEngine->globalObject().setProperty("scriptFile", m_scriptEngine->newQObject(m_scriptFileObject));
 
 
         if(m_userInterface[0]->getWidgetPointer())
@@ -864,155 +750,180 @@ void ScriptThread::installsCustomWidget(QObject* child, QScriptEngine* scriptEng
  */
 void ScriptThread::installOneChild(QObject* child, QScriptEngine* scriptEngine)
 {
+    QString objectName = "UI_" + child->objectName();
+
     if((QString(child->metaObject()->className()) == QString("QComboBox")) ||
             (QString(child->metaObject()->className()) == QString("QFontComboBox")))
     {
-        ScriptComboBox* scriptBox = new ScriptComboBox(static_cast<QComboBox*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(scriptBox));
+        ScriptComboBox* element = new ScriptComboBox(static_cast<QComboBox*>(child), this);
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QLineEdit"))
     {
-        ScriptLineEdit* lineEdit = new ScriptLineEdit(static_cast<QLineEdit*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(lineEdit));
+        ScriptLineEdit* element = new ScriptLineEdit(static_cast<QLineEdit*>(child), this);
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QTableWidget"))
     {
-        ScriptTableWidget* tableWidget = new ScriptTableWidget(static_cast<QTableWidget*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(tableWidget));
+        ScriptTableWidget* element = new ScriptTableWidget(static_cast<QTableWidget*>(child), this);
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QTextEdit"))
     {
-        ScriptTextEdit* textEdit = new ScriptTextEdit(static_cast<QTextEdit*>(child), this, m_scriptWindow);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(textEdit));
+        ScriptTextEdit* element = new ScriptTextEdit(static_cast<QTextEdit*>(child), this, m_scriptWindow);
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QCheckBox"))
     {
-        ScriptCheckBox* checkBox = new ScriptCheckBox(static_cast<QCheckBox*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(checkBox));
+        ScriptCheckBox* element = new ScriptCheckBox(static_cast<QCheckBox*>(child), this);
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QPushButton"))
     {
-        ScriptButton* button = new ScriptButton(static_cast<QPushButton*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(button));
+        ScriptButton* element = new ScriptButton(static_cast<QPushButton*>(child), this);
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QToolButton"))
     {
-        ScriptToolButton* button = new ScriptToolButton(static_cast<QToolButton*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(button));
+        ScriptToolButton* element = new ScriptToolButton(static_cast<QToolButton*>(child), this);
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QWidget"))
     {
         ScriptWidget* element = new ScriptWidget(static_cast<QWidget*>(child), this, m_scriptWindow);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QDialog"))
     {
         ScriptDialog* element = new ScriptDialog(static_cast<QDialog*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
 
         connect(m_scriptWindow->m_mainWindow, SIGNAL(bringWindowsToFrontSignal()),element, SLOT(bringWindowsToFrontSlot()), Qt::DirectConnection);
     }
     else if(QString(child->metaObject()->className()) == QString("QProgressBar"))
     {
         ScriptProgressBar* element = new ScriptProgressBar(static_cast<QProgressBar*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QLabel"))
     {
         ScriptLabel* element = new ScriptLabel(static_cast<QLabel*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QSlider"))
     {
         ScriptSlider* element = new ScriptSlider(static_cast<QAbstractSlider*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QDial"))
     {
         ScriptSlider* element = new ScriptSlider(static_cast<QAbstractSlider*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QMainWindow"))
     {
         ScriptMainWindow* element = new ScriptMainWindow(static_cast<QMainWindow*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
 
         connect(m_scriptWindow->m_mainWindow, SIGNAL(bringWindowsToFrontSignal()),element, SLOT(bringWindowsToFrontSlot()), Qt::DirectConnection);
     }
     else if(QString(child->metaObject()->className()) == QString("QAction"))
     {
         ScriptAction* element = new ScriptAction(static_cast<QAction*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
-    }
-    else if(QString(child->metaObject()->className()) == QString("QStatusBar"))
-    {
-        ScriptStatusBar* element = new ScriptStatusBar(static_cast<QStatusBar*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QTabWidget"))
     {
         ScriptTabWidget* element = new ScriptTabWidget(static_cast<QTabWidget*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QGroupBox"))
     {
         ScriptGroupBox* element = new ScriptGroupBox(static_cast<QGroupBox*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QRadioButton"))
     {
         ScriptRadioButton* element = new ScriptRadioButton(static_cast<QRadioButton*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QSpinBox"))
     {
         ScriptSpinBox* element = new ScriptSpinBox(static_cast<QSpinBox*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QDoubleSpinBox"))
     {
         ScriptDoubleSpinBox* element = new ScriptDoubleSpinBox(static_cast<QDoubleSpinBox*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QTimeEdit"))
     {
         ScriptTimeEdit* element = new ScriptTimeEdit(static_cast<QTimeEdit*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QDateEdit"))
     {
         ScriptDateEdit* element = new ScriptDateEdit(static_cast<QDateEdit*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QDateTimeEdit"))
     {
         ScriptDateTimeEdit* element = new ScriptDateTimeEdit(static_cast<QDateTimeEdit*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QListWidget"))
     {
         ScriptListWidget* element = new ScriptListWidget(static_cast<QListWidget*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QTreeWidget"))
     {
         ScriptTreeWidget* element = new ScriptTreeWidget(static_cast<QTreeWidget*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QSplitter"))
     {
         ScriptSplitter* element = new ScriptSplitter(static_cast<QSplitter*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QToolBox"))
     {
         ScriptToolBox* element = new ScriptToolBox(static_cast<QToolBox*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QCalendarWidget"))
     {
         ScriptCalendarWidget* element = new ScriptCalendarWidget(static_cast<QCalendarWidget*>(child), this);
-        scriptEngine->globalObject().setProperty("UI_" + child->objectName(), scriptEngine->newQObject(element));
+        scriptEngine->globalObject().setProperty(objectName, scriptEngine->newQObject(element));
+        element->setObjectName(objectName);
     }
     else if(QString(child->metaObject()->className()) == QString("QTableView"))
     {
@@ -1062,7 +973,8 @@ void ScriptThread::installOneChild(QObject* child, QScriptEngine* scriptEngine)
             QString(child->metaObject()->className()) == QString("QListModel") ||
             QString(child->metaObject()->className()) == QString("QStackedLayout") ||
             QString(child->metaObject()->className()) == QString("QTableModel") ||
-            QString(child->metaObject()->className()) == QString("QTabBar"))
+            QString(child->metaObject()->className()) == QString("QTabBar") ||
+            QString(child->metaObject()->className()) == QString("QStatusBar"))
     {//not supported class
 
     }
@@ -1422,8 +1334,16 @@ void ScriptThread::scriptSignalHandlerSlot(const QScriptValue & exception)
  */
 bool ScriptThread::loadScript(QString scriptPath, bool isRelativePath)
 {
-     QWidget* parent = (m_scriptWindow->isVisible()) ? static_cast<QWidget *>(m_scriptWindow) : static_cast<QWidget *>(m_scriptWindow->getMainWindow());
-    return m_scriptFileObject->loadScript(scriptPath, isRelativePath, m_scriptEngine, parent, m_scriptWindow);
+    QWidget* parent = (m_scriptWindow->isVisible()) ? static_cast<QWidget *>(m_scriptWindow) : static_cast<QWidget *>(m_scriptWindow->getMainWindow());
+    bool scriptShallBeStopped = false;
+    bool result =  m_scriptFileObject->loadScript(scriptPath, isRelativePath, m_scriptEngine, parent, m_scriptWindow, true, &scriptShallBeStopped);
+
+    if(!result && scriptShallBeStopped)
+    {
+        stopScript();
+    }
+
+    return result;
 }
 
 /**
@@ -2197,9 +2117,30 @@ bool ScriptThread::writeToProcessStdin(QScriptValue process, QVector<unsigned ch
 }
 
 /**
- * This function returns all data available from the standard output of process.
- * Note: If isBlocking is true then this function blocks until the blockByte has been received or
- * blockTime has elapsed (-1=infinite).
+ * Returns true if the process is running.
+ * @param process
+ *      The process.
+ */
+bool ScriptThread::processIsRunning(QScriptValue process)
+{
+    bool isRunning = false;
+
+    if(process.isValid() && process.isQObject())
+    {
+        QObject* obj = process.toQObject();
+        if(QString(obj->metaObject()->className()) == QString("QProcess"))
+        {
+            QProcess* proc = static_cast<QProcess*>(obj);
+            isRunning = (proc->state() == QProcess::Running) ? true : false;
+        }
+    }
+    return isRunning;
+
+}
+/**
+ * This function returns all data available from the standard output of process (can be called after the process is finished).
+ * Note: If isBlocking is true then this function blocks until the blockByte has been received,
+ * blockTime has elapsed (-1=infinite) or the process is finished.
  * @param process
  *      The process.
  * @param isBlocking
@@ -2231,6 +2172,11 @@ QVector<unsigned char>  ScriptThread::readAllStandardOutputFromProcess(QScriptVa
                 {
                     proc->waitForReadyRead(1);
                     byteArray.append(proc->readAllStandardOutput());
+
+                    if(proc->state() != QProcess::Running)
+                    {
+                        break;
+                    }
                 }
 
             }
@@ -2249,9 +2195,9 @@ QVector<unsigned char>  ScriptThread::readAllStandardOutputFromProcess(QScriptVa
 }
 
 /**
- * This function returns all data available from the standard error of process.
+ * This function returns all data available from the standard error of process (can be called after the process is finished).
  * Note: If isBlocking is true then this function blocks until the blockByte has been received or
- * blockTime has elapsed (-1=infinite).
+ * blockTime has elapsed (-1=infinite) or the process is finished.
  * @param process
  *      The process.
  * @param isBlocking
@@ -2283,6 +2229,10 @@ QVector<unsigned char>  ScriptThread::readAllStandardErrorFromProcess(QScriptVal
                 {
                     proc->waitForReadyRead(1);
                     byteArray.append(proc->readAllStandardError());
+                    if(proc->state() != QProcess::Running)
+                    {
+                        break;
+                    }
 
                 }
 
@@ -2318,31 +2268,6 @@ bool ScriptThread::sendString(QString string, int repetitionCount, int pause, bo
     return sendByteArray(string.toLocal8Bit(), repetitionCount, pause, addToMainWindowSendHistory);
 }
 
-/**
- * Adds files to a zip file.
- * @param fileName
- * The file name of the zip file.
- * @param fileList
- *      Contains all files. An entry consists of a string pair.
- *      The first entry of this pair is the source file name (including the absolute file path) and the second
- *      is the file name inside (including the relative path) the zip file.
- * @param comment
- *      The zip file comment.
- * @return
- *      True on success.
- */
-bool ScriptThread::zipFiles(QString fileName, QVariantList fileList, QString comment)
-{
-    bool result = false;
-    QList<QStringList> createdList;
-
-    for(int i = 0; i < fileList.length(); i++)
-    {
-        createdList << fileList[i].toStringList();
-    }
-    result = m_scriptFileObject->zipFiles(fileName, createdList, 0, comment);
-    return result;
-}
 /**
  * Loads a dynamic link library and calls the init function (void init(QScriptEngine* engine)).
  * With this function a script can extend his functionality.
@@ -2961,6 +2886,53 @@ void ScriptThread::sendReceivedDataToMainInterface(QVector<unsigned char> data)
 {
     QByteArray array = QByteArray(reinterpret_cast<const char*>(data.constData()), data.length());
     m_scriptWindow->m_mainInterfaceThread->dataReceived(array);
+}
+
+/**
+ * Returns the console settings (settings dialog).
+ *      The console settings.
+ */
+QScriptValue ScriptThread::getConsoleSettings(void)
+{
+    const Settings* settings = m_settingsDialog->settings();
+    QScriptValue ret = m_scriptEngine->newObject();
+
+    ret.setProperty("showReceivedData", settings->showReceivedDataInConsole);
+    ret.setProperty("showSendData", settings->showSendDataInConsole);
+    ret.setProperty("maxChars", settings->maxCharsInConsole);
+    ret.setProperty("lockScrolling", settings->lockScrollingInConsole);
+    ret.setProperty("font", settings->stringConsoleFont);
+    ret.setProperty("fontSize", settings->stringConsoleFontSize);
+    ret.setProperty("updateInterval", settings->updateIntervalConsole);
+    ret.setProperty("receiveColor", settings->consoleReceiveColor);
+    ret.setProperty("sendColor", settings->consoleSendColor);
+    ret.setProperty("backgroundColor", settings->consoleBackgroundColor);
+    ret.setProperty("timestampColor", settings->consoleMessageAndTimestampColor);
+    ret.setProperty("newLineAfterBytes", settings->consoleNewLineAfterBytes);
+    ret.setProperty("newLineAfterPause", settings->consoleNewLineAfterPause);
+    ret.setProperty("createNewLineAtByte", (settings->consoleNewLineAt != 0xffff) ? true : false);
+    ret.setProperty("newLineAtByte", (quint8)settings->consoleNewLineAt);
+    ret.setProperty("ceateTimestampAtByte", (settings->consoleCreateTimestampAt != 0) ? true : false);
+    ret.setProperty("timestampAtByte", (quint8)settings->consoleCreateTimestampAt);
+	ret.setProperty("generateCyclicTimeStamps", settings->generateTimeStampsInConsole);
+    ret.setProperty("timeStampInterval", settings->timeStampIntervalConsole);
+	ret.setProperty("timestampFormat", settings->consoleTimestampFormat);
+    return ret;
+}
+
+
+/**
+ * Sets the main window and the ScriptCommunicator task bar icon.
+ * Supported formats: .ico, .gif, .png, .jpeg, .tiff, .bmp, .icns.
+ * @param iconFile
+ *      The file name of the icon.
+ * @param isRelativePath
+ *      True of path is a relative path.
+ */
+void ScriptThread::setMainWindowAndTaskBarIcon(QString iconFile, bool isRelativePath)
+{
+    iconFile = isRelativePath ? m_scriptFileObject->createAbsolutePath(iconFile) : iconFile;
+    emit setMainWindowAndTaskBarIconSignal(iconFile);
 }
 
 /**

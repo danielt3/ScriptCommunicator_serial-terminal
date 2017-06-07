@@ -33,12 +33,25 @@
 #include <QProcess>
 #include <QStandardPaths>
 
+#ifdef Q_OS_WIN32
+#include <Windows.h>
+#endif
+
 ///Is set to true if a thread has been terminated.
 ///This variabke is used un the main function.
 bool g_aThreadHasBeenTerminated = false;
 
 ///The current SCEZ folder.
 QString g_currentScezFolder = "";
+
+#ifdef Q_OS_WIN32
+static void messageHandler(QtMsgType type, const QMessageLogContext& context, const QString &message)
+{
+    (void)type;
+    (void)context;
+    OutputDebugString(reinterpret_cast<const wchar_t *>(message.utf16()));
+}
+#endif
 
 ///Deletes the current SCEZ folder.
 void deleteCurrentScezFolder(void)
@@ -64,12 +77,18 @@ int main(int argc, char *argv[])
     QStringList extraPluginPaths;
     QStringList scriptArguments;
     QStringList extraLibPaths;
+    QString configFile;
     int result = 0;
 
     QStringList scripts;
     bool withScriptWindow = false;
     bool scriptWindowIsMinimized = true;
     QString minimumScVersion;
+    QString iconFile;
+
+#ifdef Q_OS_WIN32
+    qInstallMessageHandler(messageHandler);
+#endif
 
     //Parse all arguments.
     for(int i = 1; i < argc; i++)
@@ -97,14 +116,23 @@ int main(int argc, char *argv[])
 
                 extraLibPaths << currentArg.remove("-L");
             }
+            else if(currentArg.startsWith("-C"))
+            {//Config file.
+
+                configFile = currentArg.remove("-C");
+            }
             else if(currentArg.startsWith("-A"))
             {//Script argument (script can read these arguments withScriptThread::getScriptArguments).
 
                 scriptArguments << currentArg.remove("-A");
             }
-            else if(QString("-minScVersion") == currentArg)
+            else if(currentArg.startsWith("-minScVersion"))
             {
                 minimumScVersion = currentArg.remove("-minScVersion");
+            }
+            else if(currentArg.startsWith("-I"))
+            {
+                iconFile = currentArg.remove("-I");
             }
             else
             {
@@ -223,7 +251,8 @@ int main(int argc, char *argv[])
     try
     {
 
-        MainWindow* w = new MainWindow(scripts, withScriptWindow, scriptWindowIsMinimized, extraPluginPaths, scriptArguments);
+        MainWindow* w = new MainWindow(scripts, withScriptWindow, scriptWindowIsMinimized, extraPluginPaths,
+                                       scriptArguments, configFile, iconFile);
 
         if(scripts.isEmpty())
         {

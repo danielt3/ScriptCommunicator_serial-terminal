@@ -34,8 +34,6 @@ class QDESIGNER_WIDGET_EXPORT LED : public QWidget
     Q_PROPERTY(bool state READ state WRITE setState)
     Q_PROPERTY(bool flashing READ isFlashing WRITE setFlashing)
     Q_PROPERTY(int flashRate READ flashRate WRITE setFlashRate)
-    Q_PROPERTY(int threshold READ threshold WRITE setThreshold)
-    Q_PROPERTY(int input READ input WRITE setInput)
     Q_PROPERTY(int alphaForOff READ alphaForOff WRITE setAlphaForOff)
 
 public:
@@ -46,7 +44,6 @@ public:
     void setDiameter(double diameter);
 
     QColor color() const;
-    void setColor(const QColor& color);
 
     Qt::Alignment alignment() const;
     void setAlignment(Qt::Alignment alignment);
@@ -57,8 +54,6 @@ public:
     
     int flashRate() const;
 
-    int threshold() const;
-    int input() const;
     int alphaForOff() const;
 
 public slots:
@@ -68,9 +63,8 @@ public slots:
     void setFlashRate(int rate);
     void startFlashing();
     void stopFlashing();
-    void setThreshold(int value);
-    void setInput(int value);
     void setAlphaForOff(int value);
+    void setColor(QColor color);
 
     //QtDesigner sometimes sets the visible property to false (a bug in QtDesigner?) therefore setVisible is ignored here.
     void setVisible(bool visible){(void) visible; QWidget::setVisible(true);}
@@ -108,8 +102,6 @@ private:
     //
     int m_diamX, m_diamY;
     QTimer* m_timer;
-    int m_threshold;
-    int input_;
     int m_alphaForOff;
     int m_flashRate;
     bool m_flashing;
@@ -144,8 +136,8 @@ public:
         connect(this, SIGNAL(toggleStateSignal()), m_led, SLOT(toggleState()), Qt::QueuedConnection);
         connect(this, SIGNAL(setFlashingeSignal(bool)), m_led, SLOT(setFlashing(bool)), Qt::QueuedConnection);
         connect(this, SIGNAL(setStateSignal(bool)), m_led, SLOT(setState(bool)), Qt::QueuedConnection);
-
-        connect(m_led, SIGNAL(stateChangedSignal(bool)), this, SLOT(stateChangedSlot(bool)), Qt::QueuedConnection); // activate slot
+        connect(this, SIGNAL(setColorSignal(QColor)), m_led, SLOT(setColor(QColor)), Qt::QueuedConnection);
+        connect(this, SIGNAL(setFlashRateSignal(int)), m_led, SLOT(setFlashRate(int)), Qt::QueuedConnection);
 
     }
     ScriptLed()
@@ -159,17 +151,27 @@ public:
     virtual QString getPublicScriptElements(void)
     {
         return "void toggleState(void);void setFlashing(bool flashing);"
-                "void setState(bool state);void stateChangedSlot(bool state);stateChangedSignal(bool state)";
+                "void setState(bool state);void stateChangedSlot(bool state);stateChangedSignal(bool state);"
+                "setColorRgb(quint8 red, quint8 green, quint8 blue);setFlashRate(int rate)";
     }
 
+    ///Toggles the state of the LED (on/off).
     Q_INVOKABLE void toggleState(void){emit toggleStateSignal();}
+
+    ///Turns the flashing of the LED on or off.
     Q_INVOKABLE void setFlashing(bool flashing){emit setFlashingeSignal(flashing);}
+
+    ///Sets the state of the LED (on/off).
     Q_INVOKABLE void setState(bool state){emit setStateSignal(state);}
 
-    Q_INVOKABLE void stateChangedSlot(bool state)
+    ///Sets the color of the LED.
+    Q_INVOKABLE void setColorRgb(quint8 red, quint8 green, quint8 blue)
     {
-        emit stateChangedSignal(!state); //negation
+        emit setColorSignal(QColor(red, green, blue));
     }
+
+    ///Sets the flahing rate of the LED (ms).
+    Q_INVOKABLE void  setFlashRate(int rate){emit setFlashRateSignal(rate);}
 
 
 
@@ -183,6 +185,8 @@ signals:
     void toggleStateSignal(void);
     void setFlashingeSignal(bool flashing);
     void setStateSignal(bool state);
+    void setColorSignal(QColor color);
+    void setFlashRateSignal(int rate);
 
 
 private:

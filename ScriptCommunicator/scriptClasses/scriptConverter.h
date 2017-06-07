@@ -18,25 +18,7 @@ public:
     ///Returns a semicolon separated list with all public functions, signals and properties.
     virtual QString getPublicScriptElements(void)
     {
-        return "QString byteArrayToString(QVector<unsigned char> data);QString byteArrayToHexString(QVector<unsigned char> data);"
-               "QVector<unsigned char> stringToArray(QString str);"
-                "uint16_t byteArrayToUint16(QVector<unsigned char> data, bool littleEndian);"
-                "uint32_t byteArrayToUint32(QVector<unsigned char> data, bool littleEndian);"
-                "uint64_t byteArrayToUint64(QVector<unsigned char> data, bool littleEndian);"
-                "int16_t byteArrayToInt16(QVector<unsigned char> data, bool littleEndian);"
-                "int32_t byteArrayToInt32(QVector<unsigned char> data, bool littleEndian);"
-                "int64_t byteArrayToInt64(QVector<unsigned char> data, bool littleEndian);"
-                "float byteArrayToFloat32(QVector<unsigned char> data, bool littleEndian);"
-                "double byteArrayToFloat64(QVector<unsigned char> data, bool littleEndian);"
-                "QVector<unsigned char> addStringToArray(QVector<unsigned char> array , QString str);"
-                "QVector<unsigned char> addUint16ToArray(QVector<unsigned char> array, uint16_t value, bool littleEndian);"
-                "QVector<unsigned char> addUint32ToArray(QVector<unsigned char> array, uint32_t value, bool littleEndian);"
-                "QVector<unsigned char> addUint64ToArray(QVector<unsigned char> array, uint64_t value, bool littleEndian);"
-                "QVector<unsigned char> addInt16ToArray(QVector<unsigned char> array, int16_t value, bool littleEndian);"
-                "QVector<unsigned char> addInt32ToArray(QVector<unsigned char> array, int32_t value, bool littleEndian);"
-                "QVector<unsigned char> addInt64ToArray(QVector<unsigned char> array, int64_t value, bool littleEndian);"
-                "QVector<unsigned char> addFloat32ToArray(QVector<unsigned char> array, float value, bool littleEndian);"
-                "QVector<unsigned char> addFloat64ToArray(QVector<unsigned char> array, double value, bool littleEndian);";
+        return MainWindow::parseApiFile("conv.api");
     }
 
     ///Registers all (for this class) necessary meta types.
@@ -45,20 +27,29 @@ public:
     ///Converts a byte array into a hex string.
     Q_INVOKABLE static QString byteArrayToHexString(QVector<unsigned char> data);
 
-    ///Converts a byte array which contains ascii characters into a ascii string (QString).
+    ///Converts a byte array which contains ascii characters into an ascii string (QString).
     Q_INVOKABLE static QString byteArrayToString(QVector<unsigned char> data);
+
+    ///Converts a byte array which contains utf8 characters into an utf8 string (QString).
+    Q_INVOKABLE static QString byteArrayToUtf8String(QVector<unsigned char> data);
 
     ///Converts an ascii string into a byte array.
     Q_INVOKABLE static QVector<unsigned char> stringToArray(QString str);
 
     ///Converts the first Bytes of a byte array to an uint16_t.
+    ///Note: This functions works only if the return value is uint32_t (and not uint16_t).
     Q_INVOKABLE static uint32_t byteArrayToUint16(QVector<unsigned char> data, bool littleEndian);
 
     ///Converts the first Bytes of a byte array to an uint32_t.
-    Q_INVOKABLE static uint32_t byteArrayToUint32(QVector<unsigned char> data, bool littleEndian);
+    ///Note: This functions works only if the return value is uint64_t (and not uint32_t).
+    Q_INVOKABLE static uint64_t byteArrayToUint32(QVector<unsigned char> data, bool littleEndian);
 
     ///Converts the first Bytes of a byte array to an uint64_t.
     Q_INVOKABLE static uint64_t byteArrayToUint64(QVector<unsigned char> data, bool littleEndian);
+
+    ///Converts an unsigned char to a signed char (int8_t).
+    ///Note: This functions works only if the return value is int16_t (nd not int8_t).
+    Q_INVOKABLE static int16_t unsignedCharToSignedChar(unsigned char number);
 
     ///Converts the first Bytes of a byte array to an int16_t.
     Q_INVOKABLE static int16_t byteArrayToInt16(QVector<unsigned char> data, bool littleEndian);
@@ -69,10 +60,10 @@ public:
     ///Converts the first Bytes of a byte array to an int64_t.
     Q_INVOKABLE static int64_t byteArrayToInt64(QVector<unsigned char> data, bool littleEndian);
 
-    ///Converts the first Bytes of a byte array to an float32.
+    ///Converts the first Bytes of a byte array to a float32.
     Q_INVOKABLE static float byteArrayToFloat32(QVector<unsigned char> data, bool littleEndian);
 
-    ///Converts the first Bytes of a byte array to an float64.
+    ///Converts the first Bytes of a byte array to a float64.
     Q_INVOKABLE static double byteArrayToFloat64(QVector<unsigned char> data, bool littleEndian);
 
     ///Adds an ascii string to a byte array.
@@ -96,10 +87,10 @@ public:
     ///Adds an int64 to a byte array.
     Q_INVOKABLE static QVector<unsigned char> addInt64ToArray(QVector<unsigned char> array, int64_t value, bool littleEndian);
 
-    ///Adds an float32 to a byte array.
+    ///Adds a float32 to a byte array.
     Q_INVOKABLE static QVector<unsigned char> addFloat32ToArray(QVector<unsigned char> array, float value, bool littleEndian);
 
-    ///Adds an float64 to a byte array.
+    ///Adds a float64 to a byte array.
     Q_INVOKABLE static QVector<unsigned char> addFloat64ToArray(QVector<unsigned char> array, double value, bool littleEndian);
 };
 

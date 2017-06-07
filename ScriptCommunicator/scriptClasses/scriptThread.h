@@ -102,6 +102,7 @@ public:
     ///Appends text to the script window console.
     Q_INVOKABLE void appendTextToConsole(QString string, bool newLine=true, bool bringToForeground=false){ emit appendTextToConsoleSignal(string, newLine,bringToForeground);}
 
+    /****************Deprecated functions (replaced by the conv object)******************************************************/
     ///Converts a byte array which contains ascii characters into a ascii string (QString).
     Q_INVOKABLE QString byteArrayToString(QVector<unsigned char> data){return ScriptConverter::byteArrayToString(data);}
 
@@ -113,45 +114,10 @@ public:
 
     ///Adds an ascii string to a byte array.
     Q_INVOKABLE QVector<unsigned char> addStringToArray(QVector<unsigned char> array, QString str){return ScriptConverter::addStringToArray(array, str);}
+    /*************************************************************************************************************************/
 
-    ///Forces the script thread to sleep for ms milliseconds.
-    Q_INVOKABLE void sleepFromScript(quint32 timeMs);
 
-    ///Creates an UDP socket.
-    Q_INVOKABLE QScriptValue createUdpSocket(void);
-
-    ///Creates a TCP server.
-    Q_INVOKABLE QScriptValue createTcpServer(void);
-
-    ///Creates a TCP socket.
-    Q_INVOKABLE QScriptValue createTcpClient(void);
-
-    ///Creates a timer.
-    Q_INVOKABLE QScriptValue createTimer(void);
-
-    ///Creates a serial port.
-    Q_INVOKABLE QScriptValue createSerialPort(void);
-
-    ///Creates a cheetah spi interface.
-    Q_INVOKABLE QScriptValue createCheetahSpiInterface(void);
-
-    ///Creates a pcan interface.
-    Q_INVOKABLE QScriptValue createPcanInterface(void);
-
-    ///Creates a plot window.
-    Q_INVOKABLE QScriptValue createPlotWindow();
-
-    ///Creates a XML reader.
-    Q_INVOKABLE QScriptValue createXmlReader();
-
-    ///Creates a XML writer.
-    Q_INVOKABLE QScriptValue createXmlWriter();
-
-    ///Deletes an object created by the script.
-    ///Note: This function must not used any more.
-    ///Objects are deleted automatically by the script engine garbage collector.
-    Q_INVOKABLE void deleteObject(QObject* obj);
-
+    /****************Deprecated functions (replaced by the scriptFile object)******************************************************/
     ///Reads a text file and returns the content.
     Q_INVOKABLE QString readFile(QString path, bool isRelativePath=true, quint64 startPosition=0, qint64 numberOfBytes=-1)
     {return m_scriptFileObject->readFile(path, isRelativePath, startPosition, numberOfBytes);}
@@ -221,19 +187,61 @@ public:
         return fi.absolutePath();
     }
 
-    ///Loads/includes one script (QtScript has no built in include mechanism).
-    Q_INVOKABLE bool loadScript(QString scriptPath, bool isRelativePath=true);
-
     ///Zips a directory.
     Q_INVOKABLE bool zipDirectory(QString fileName, QString sourceDirName, QString comment="")
     {return m_scriptFileObject->zipDirectory(fileName, sourceDirName, 0, comment);}
 
     ///Adds files to a zip file.
-    Q_INVOKABLE bool zipFiles(QString fileName, QVariantList fileList, QString comment="");
+    Q_INVOKABLE bool zipFiles(QString fileName, QVariantList fileList, QString comment="")
+    { return m_scriptFileObject->zipFiles(fileName, fileList, comment);}
 
     ///Extracts a zip file.
     Q_INVOKABLE bool extractZipFile(QString fileName, QString destinationDirectory)
     {return m_scriptFileObject->extractZipFile(fileName, destinationDirectory);}
+
+
+    /*************************************************************************************************************************/
+
+    ///Forces the script thread to sleep for ms milliseconds.
+    Q_INVOKABLE void sleepFromScript(quint32 timeMs);
+
+    ///Creates an UDP socket.
+    Q_INVOKABLE QScriptValue createUdpSocket(void);
+
+    ///Creates a TCP server.
+    Q_INVOKABLE QScriptValue createTcpServer(void);
+
+    ///Creates a TCP socket.
+    Q_INVOKABLE QScriptValue createTcpClient(void);
+
+    ///Creates a timer.
+    Q_INVOKABLE QScriptValue createTimer(void);
+
+    ///Creates a serial port.
+    Q_INVOKABLE QScriptValue createSerialPort(void);
+
+    ///Creates a cheetah spi interface.
+    Q_INVOKABLE QScriptValue createCheetahSpiInterface(void);
+
+    ///Creates a pcan interface.
+    Q_INVOKABLE QScriptValue createPcanInterface(void);
+
+    ///Creates a plot window.
+    Q_INVOKABLE QScriptValue createPlotWindow();
+
+    ///Creates a XML reader.
+    Q_INVOKABLE QScriptValue createXmlReader();
+
+    ///Creates a XML writer.
+    Q_INVOKABLE QScriptValue createXmlWriter();
+
+    ///Deletes an object created by the script.
+    ///Note: This function must not used any more.
+    ///Objects are deleted automatically by the script engine garbage collector.
+    Q_INVOKABLE void deleteObject(QObject* obj);
+
+    ///Loads/includes one script (QtScript has no built in include mechanism).
+    Q_INVOKABLE bool loadScript(QString scriptPath, bool isRelativePath=true);
 
     ///Loads a dynamic link library and calls the init function (void init(QScriptEngine* engine)).
     ///With this function a script can extend his functionality.
@@ -265,6 +273,18 @@ public:
 
     ///Sets the serial port (main interface) RTS and DTR pins.
     Q_INVOKABLE void setSerialPortPins(bool setRTS, bool setDTR);
+
+
+    ///Returns the state of the serial port signals (pins).
+    ///The signals are bit coded:
+    ///NoSignal = 0x00,
+    ///DataTerminalReadySignal = 0x04,
+    ///DataCarrierDetectSignal = 0x08,
+    ///DataSetReadySignal = 0x10,
+    ///RingIndicatorSignal = 0x20,
+    ///RequestToSendSignal = 0x40,
+    ///ClearToSendSignal = 0x80,
+    Q_INVOKABLE quint32 getSerialPortSignals(void){uint32_t bits;emit getSerialPortSignalsSignal(&bits);return bits;}
 
     ///Connects the main interface (serial port).
     ///Note: A successful call will modify the corresponding settings in the settings dialog.
@@ -320,15 +340,18 @@ public:
     ///Note: Blocks until the writing is finished or until msecs milliseconds have passed (-1=infinite).
     Q_INVOKABLE bool writeToProcessStdin(QScriptValue process, QVector<unsigned char> data, int waitTime=30000);
 
-    ///This function returns all data available from the standard output of process.
-	///Note: If isBlocking is true then this function blocks until the blockByte has been received or
-	///blockTime has elapsed (-1=infinite).
+    ///Returns true if the process is running.
+    Q_INVOKABLE bool processIsRunning(QScriptValue process);
+
+    ///This function returns all data available from the standard output of process (can be called after the process is finished).
+	///Note: If isBlocking is true then this function blocks until the blockByte has been received, blockTime has elapsed (-1=infinite) or
+	///the process is finished.
     Q_INVOKABLE QVector<unsigned char> readAllStandardOutputFromProcess(QScriptValue process, bool isBlocking=false,
                                                                         quint8 blockByte='\n', qint32 blockTime=30000);
 
-    ///This function returns all data available from the standard error of process.
-	///Note: If isBlocking is true then this function blocks until the blockByte has been received or
-	///blockTime has elapsed (-1=infinite).
+    ///This function returns all data available from the standard error of process (can be called after the process is finished).
+	///Note: If isBlocking is true then this function blocks until the blockByte has been received, blockTime has elapsed (-1=infinite) or
+	///the process is finished.
     Q_INVOKABLE QVector<unsigned char> readAllStandardErrorFromProcess(QScriptValue process, bool isBlocking=false,
                                                                        quint8 blockByte='\n', qint32 blockTime=30000);
 
@@ -536,6 +559,20 @@ public:
     ///Sets the title of the main window.
     Q_INVOKABLE void setMainWindowTitle(QString newTitle){emit setMainWindowTitleSignal(newTitle);}
 
+    ///Returns the current time stamp in a specific format (see QDateTime.toString for more details).
+    ///If the format string is empty then the format from the settings dialog (console options tab) is used.
+    Q_INVOKABLE QString getTimestamp(QString format = "")
+    {
+        return QDateTime::currentDateTime().toString(format.isEmpty() ? m_settingsDialog->settings()->consoleTimestampFormat : format);
+    }
+
+    ///Returns the console settings (settings dialog).
+    Q_INVOKABLE QScriptValue getConsoleSettings(void);
+
+    ///Sets the main window and the ScriptCommunicator task bar icon.
+    ///Supported formats: .ico, .gif, .png, .jpeg, .tiff, .bmp, .icns.
+    Q_INVOKABLE void setMainWindowAndTaskBarIcon(QString iconFile, bool isRelativePath=true);
+
     ///Returns and all functions, signals and properties of an object.
     static void getAllObjectPropertiesAndFunctionsInternal(QScriptValue object, QStringList* resultList, QString* resultString);
 
@@ -603,6 +640,10 @@ signals:
     ///use canMessagesReceivedSignal if the main interface is a can interface).
     ///Scripts can connect a function to this signal.
     void dataReceivedSignal(QVector<unsigned char> data);
+
+    ///This signal is emitted in setMainWindowAndTaskBarIcon.
+    ///This signal must not be used from script.
+    void setMainWindowAndTaskBarIconSignal(QString iconFile);
 
 
     ///This signal is emitted if a can message (or several) has been received with the main interface.
@@ -685,6 +726,10 @@ signals:
     ///Is connected with MainWindow::setWindowTitle.
     ///This signal must not be used from script.
     void setMainWindowTitleSignal(QString newTitle);
+
+    ///Returns the state of the serial port signals (pins).
+    ///This signal must not be used from script.
+    void getSerialPortSignalsSignal(uint32_t* bits);
 
 protected:
     ///The thread main function.

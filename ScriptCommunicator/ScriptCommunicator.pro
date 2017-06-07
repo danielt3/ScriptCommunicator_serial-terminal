@@ -18,6 +18,9 @@ QT += uitools
 QT += network
 QT += sql
 QT += scripttools
+win32{
+QT += winextras
+}
 
 DEFINES += QUAZIP_STATIC
 unix{
@@ -30,7 +33,8 @@ scriptClasses/scriptUiClasses \
 cheetahSpi \
 pcan \
 scriptClasses/canvas2D \
-quazip
+quazip \
+ScriptEditor
 
 RC_FILE = images/ScriptCommunicator.rc
 
@@ -138,7 +142,6 @@ HEADERS += \
     scriptClasses/scriptUiClasses/scriptSlider.h \
     scriptClasses/scriptUiClasses/scriptMainWindow.h \
     scriptClasses/scriptUiClasses/scriptAction.h \
-    scriptClasses/scriptUiClasses/scriptStatusBar.h \
     scriptClasses/scriptUiClasses/scriptTabWidget.h \
     scriptClasses/scriptUiClasses/scriptGroupBox.h \
     scriptClasses/scriptUiClasses/scriptRadioButton.h \
@@ -225,7 +228,8 @@ HEADERS += \
     quazip/zip.h \
     scriptClasses/scriptObject.h \
     scriptClasses/scriptTimer.h \
-    scriptClasses/scriptConverter.h
+    scriptClasses/scriptConverter.h \
+    ScriptEditor/version.h
 
 FORMS += \
     mainwindow.ui \

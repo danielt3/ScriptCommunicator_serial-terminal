@@ -93,7 +93,10 @@ HEADERS      = \
     findDialog.h \
     mainwindow.h \
     singledocument.h \
-    parseThread.h
+    parseThread.h \
+    version.h \
+    esprima/esprima.h \
+    esprima/esprimaparsefunctions.h
 SOURCES      = main.cpp \
     QScintilla/InputMethod.cpp \
     QScintilla/ListBoxQt.cpp \
@@ -158,7 +161,8 @@ SOURCES      = main.cpp \
     findDialog.cpp \
     mainwindow.cpp \
     singledocument.cpp \
-    parseThread.cpp
+    parseThread.cpp \
+    esprima/esprima.cpp
 
 
 RESOURCES    = ScriptEditor.qrc
@@ -167,4 +171,6 @@ FORMS += \
     findDialog.ui \
     mainwindow.ui
 
-DISTFILES +=
+DISTFILES += \
+    images/font.png \
+    images/close.png

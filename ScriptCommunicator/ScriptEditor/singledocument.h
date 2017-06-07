@@ -4,8 +4,20 @@
 #include <QObject>
 #include <Qsci/qsciscintilla.h>
 #include <QDomDocument>
+#include <QDateTime>
+#include "parseThread.h"
+
+
+
+//A parsed ui object entry.
+typedef struct
+{
+    QString objectName;
+    QString uiFile;
+}ParsedUiObject;
 
 class MainWindow;
+
 
 ///This class holds a single document.
 class SingleDocument : public QsciScintilla
@@ -16,14 +28,55 @@ public:
     ///Initializes the lexer.
     void initLexer(QString script);
 
+    ///Updates the last modified time stamp.
+    void updateLastModified(void);
+
+    ///Underlines a word which can be clicked (funktion or variable in the outline window).
+    void underlineWordWhichCanBeClicked(int pos);
+
+    ///Clears the current underline (clickable word).
+    void removeUndlineFromWordWhichCanBeClicked(void);
+
+    ///Returns the last modified time stamp.
+    QDateTime getLastModified(void);
+
     ///Sets the document name/path.
-    void setDocumentName(QString name);
+    void setDocumentName(QString name, QFont font);
+
+    ///Sets the font size of the line number margin.
+    void setLineNumberMarginFontSize(int pointSize);
 
     ///Returns the document name/path.
     QString getDocumentName(void){return m_documentName;}
 
     ///Initializes the autocompletion.
-    void initAutoCompletion(QStringList &additionalElements, QMap<QString, QStringList> &autoCompletionEntries, QMap<QString, QStringList>& autoCompletionApiFiles);
+    void initAutoCompletion(QMap<QString, QStringList> &autoCompletionEntries, QMap<QString, QStringList>& autoCompletionApiFiles);
+
+    ///Sets m_fileMustBeParsed.
+    void setFileMustBeParsed(bool fileMustBeParsed){m_fileMustBeParsed = fileMustBeParsed;}
+
+    ///Returns m_fileMustBeParsed.
+    bool getFileMustBeParsed(void){return m_fileMustBeParsed;}
+
+    ///Clears the vector which contains all function.
+    void clearAllFunctions(void){m_functions.clear();}
+
+    ///Adds a function the current document.
+    void addFunction(ParsedEntry& function);
+
+    ///Returns the current context string.
+    QString getContextString(int line);
+
+protected:
+
+    ///Handle mouse moves
+   void mouseMoveEventChild(QMouseEvent *event);
+
+   ///Handle key presses
+   void keyPressEventChild(QKeyEvent *event);
+
+   void keyReleaseEvent(QKeyEvent *event);
+
 
 private:
 
@@ -49,6 +102,24 @@ private:
 
     ///The name of the document.
     QString m_documentName;
+
+    ///Time at which the corresponding file has been modified-
+    QDateTime m_fileLastModified;
+
+    ///True if the file must be parst (file content changed).
+    bool m_fileMustBeParsed;
+
+    ///The start of the current click indicator (-1 is invalid) .
+    int m_clickIndicatorStart;
+
+    ///The start of the current click indicator (-1 is invalid) .
+    int m_clickIndicatorEnd;
+
+    ///The id of the indicator which is used to underline clickable words.
+    int m_clickIndicatorIdentifier;
+
+    ///All function which belongs to the current document.
+    QVector<ParsedEntry> m_functions;
 };
 
 #endif // SINGLEDOCUMENT_H

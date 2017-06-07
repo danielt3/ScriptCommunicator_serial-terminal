@@ -34,6 +34,7 @@
 #include <QNetworkInterface>
 #include <QScrollBar>
 #include <QProcess>
+#include <QShortcut>
 #include "colorWidgets/color_dialog.hpp"
 
 QT_USE_NAMESPACE
@@ -68,8 +69,6 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
 
     m_pcanInterface = new PCANBasicClass(this);
 
-    m_userInterface->baudRateBox->setInsertPolicy(QComboBox::NoInsert);
-
     QStringList listFontSize;
     for (int fs = Settings::MIN_FONT_SIZE; fs <= Settings::MAX_FONT_SIZE; fs++)
         listFontSize.append(QString::number(fs));
@@ -83,16 +82,11 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
     connect(m_userInterface->cheetahScanPushButton, SIGNAL(clicked()),
             this, SLOT(cheetahScanButtonSlot()));
 
+    QShortcut* shortcut = new QShortcut(QKeySequence("Ctrl+Shift+X"), this);
+    QObject::connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
+
     connect(m_userInterface->closeButton, SIGNAL(clicked()),
             this, SLOT(closeButtonPressed()));
-    connect(m_userInterface->serialPortInfoListBox, SIGNAL(currentTextChanged(QString)),
-            this, SLOT(comPortChangedSlot(QString)));
-
-    connect(m_userInterface->serialPortInfoListBox, SIGNAL(activated(QString)),
-            this, SLOT(comPortChangedSlot(QString)));
-
-    connect(m_userInterface->baudRateBox, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(checkCustomBaudRatePolicySlot(int)));
 
     connect(m_userInterface->ClearTextLogPushButton, SIGNAL(clicked()),
             this, SLOT(deleteTextLogButtonPressedSlot()));
@@ -120,6 +114,17 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
 
     connect(m_userInterface->serialPortInfoListBox, SIGNAL(currentTextChanged(QString)),
             this, SLOT(textFromGuiElementChangedSlot(QString)));
+
+    connect(m_userInterface->serialPortInfoListBox, SIGNAL(currentTextChanged(QString)),
+            this, SLOT(comPortChangedSlot(QString)));
+
+    connect(m_userInterface->serialPortInfoListBox, SIGNAL(activated(QString)),
+            this, SLOT(comPortChangedSlot(QString)));
+
+    m_userInterface->baudRateBox->setInsertPolicy(QComboBox::NoInsert);
+
+    connect(m_userInterface->baudRateBox, SIGNAL(currentIndexChanged(int)),
+            this, SLOT(checkCustomBaudRatePolicySlot(int)));
 
     connect(m_userInterface->baudRateBox, SIGNAL(currentTextChanged(QString)),
             this, SLOT(textFromGuiElementChangedSlot(QString)));
@@ -344,11 +349,20 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
             this, SLOT(searchLogScriptSlot()));
 
     connect(m_userInterface->noProxyRadioButton, SIGNAL(clicked()),
-            this, SLOT(proxyRadioButtonClickedSlot()));
+            this, SLOT(socketProxyRadioButtonClickedSlot()));
     connect(m_userInterface->useSystemProxyRadioButton, SIGNAL(clicked()),
-            this, SLOT(proxyRadioButtonClickedSlot()));
+            this, SLOT(socketProxyRadioButtonClickedSlot()));
     connect(m_userInterface->useSpecificProxyRadioButton, SIGNAL(clicked()),
-            this, SLOT(proxyRadioButtonClickedSlot()));
+            this, SLOT(socketProxyRadioButtonClickedSlot()));
+
+    connect(m_userInterface->updateNoProxy, SIGNAL(clicked()),
+            this, SLOT(updateProxyRadioButtonClickedSlot()));
+    connect(m_userInterface->updateUseSystemProxy, SIGNAL(clicked()),
+            this, SLOT(updateProxyRadioButtonClickedSlot()));
+    connect(m_userInterface->updateUseSpecificProxy, SIGNAL(clicked()),
+            this, SLOT(updateProxyRadioButtonClickedSlot()));
+
+
     connect(m_userInterface->proxyAddressLineEdit, SIGNAL(textChanged(QString)),
             this, SLOT(textFromGuiElementChangedSlot(QString)));
     connect(m_userInterface->proxyPortLineEdit, SIGNAL(textChanged(QString)),
@@ -356,6 +370,15 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
     connect(m_userInterface->proxyUserNameLineEdit, SIGNAL(textChanged(QString)),
             this, SLOT(textFromGuiElementChangedSlot(QString)));
     connect(m_userInterface->proxyPasswordLineEdit, SIGNAL(textChanged(QString)),
+            this, SLOT(textFromGuiElementChangedSlot(QString)));
+
+    connect(m_userInterface->updateProxyAddress, SIGNAL(textChanged(QString)),
+            this, SLOT(textFromGuiElementChangedSlot(QString)));
+    connect(m_userInterface->updateProxyPort, SIGNAL(textChanged(QString)),
+            this, SLOT(textFromGuiElementChangedSlot(QString)));
+    connect(m_userInterface->updateProxyUserName, SIGNAL(textChanged(QString)),
+            this, SLOT(textFromGuiElementChangedSlot(QString)));
+    connect(m_userInterface->updateProxyPassword, SIGNAL(textChanged(QString)),
             this, SLOT(textFromGuiElementChangedSlot(QString)));
 
     connect(m_userInterface->consoleEditScriptPushButton, SIGNAL(clicked()),
@@ -434,8 +457,8 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
 
     m_userInterface->consoleNewLineAt->addItem("LF", (quint16)'\n');
     m_userInterface->consoleNewLineAt->addItem("CR", (quint16)'\r');
-    m_userInterface->consoleNewLineAt->addItem("none", (quint16)0xffff);
-    m_userInterface->consoleNewLineAt->addItem("custom");
+    m_userInterface->consoleNewLineAt->addItem("None", (quint16)0xffff);
+    m_userInterface->consoleNewLineAt->addItem("Custom");
     m_userInterface->consoleNewLineAt->setInsertPolicy(QComboBox::NoInsert);
 
     connect(m_userInterface->consoleNewLineAt, SIGNAL(currentIndexChanged(int)),
@@ -445,8 +468,8 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
 
     m_userInterface->logNewLineAt->addItem("LF", (quint16)'\n');
     m_userInterface->logNewLineAt->addItem("CR", (quint16)'\r');
-    m_userInterface->logNewLineAt->addItem("none", (quint16)0xffff);
-    m_userInterface->logNewLineAt->addItem("custom");
+    m_userInterface->logNewLineAt->addItem("None", (quint16)0xffff);
+    m_userInterface->logNewLineAt->addItem("Custom");
     m_userInterface->logNewLineAt->setInsertPolicy(QComboBox::NoInsert);
 
     connect(m_userInterface->logNewLineAt, SIGNAL(currentIndexChanged(int)),
@@ -461,10 +484,11 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
 #else
     m_userInterface->consoleSendOnEnter->addItem("CR+LF", "\r\n");
 #endif
+    m_userInterface->consoleSendOnEnter->addItem("None", "");
 
     m_userInterface->consoleTimestampAtByteComboBox->addItem("LF", (quint16)'\n');
     m_userInterface->consoleTimestampAtByteComboBox->addItem("CR", (quint16)'\r');
-    m_userInterface->consoleTimestampAtByteComboBox->addItem("custom");
+    m_userInterface->consoleTimestampAtByteComboBox->addItem("Custom");
     m_userInterface->consoleTimestampAtByteComboBox->setInsertPolicy(QComboBox::NoInsert);
     connect(m_userInterface->consoleTimestampAtByteComboBox, SIGNAL(currentIndexChanged(int)),
             this, SLOT(checkCustomConsoleTimestampAtSlot(int)));
@@ -473,7 +497,7 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
 
     m_userInterface->logTimestampAtByteComboBox->addItem("LF", (quint16)'\n');
     m_userInterface->logTimestampAtByteComboBox->addItem("CR", (quint16)'\r');
-    m_userInterface->logTimestampAtByteComboBox->addItem("custom");
+    m_userInterface->logTimestampAtByteComboBox->addItem("Custom");
     m_userInterface->logTimestampAtByteComboBox->setInsertPolicy(QComboBox::NoInsert);
     connect(m_userInterface->logTimestampAtByteComboBox, SIGNAL(currentIndexChanged(int)),
             this, SLOT(checkCustomLogTimestampAtSlot(int)));
@@ -489,6 +513,8 @@ SettingsDialog::SettingsDialog(QAction *actionLockScrolling) :
     m_userInterface->serialPortInfoListBox->setAutoCompletion(false);
     m_userInterface->consoleNewLineAt->setAutoCompletion(false);;
     m_userInterface->logNewLineAt->setAutoCompletion(false);
+
+    setWindowTitle("ScriptCommunicator " + MainWindow::VERSION + " - Settings");
 }
 
 /**
@@ -781,6 +807,7 @@ void SettingsDialog::setAllSettingsSlot(Settings& settings, bool setTabIndex)
     m_userInterface->PrintTimeStampLineEdit->setText(QString("%1").arg(settings.timeStampIntervalConsole));
     m_userInterface->ConsoleUpdateIntervallLineEdit->setText(QString("%1").arg(settings.updateIntervalConsole));
     m_userInterface->consoleShowMixedCheckBox->setChecked(settings.showMixedConsole);
+    checkMixedConsoleCheckbox();
     m_userInterface->consoleShowBinaryCheckBox->setChecked(settings.showBinaryConsole);
     m_userInterface->consoleShowCanMetaCheckBox->setChecked(settings.showCanMetaInformationInConsole);
     m_userInterface->showCanTabCheckBox->setChecked(settings.showCanTab);
@@ -835,9 +862,13 @@ void SettingsDialog::setAllSettingsSlot(Settings& settings, bool setTabIndex)
     {//CR
         m_userInterface->consoleSendOnEnter->setCurrentIndex(1);
     }
-    else
+    else if(settings.consoleSendOnEnter == "\r\n")
     {//CR+LF
         m_userInterface->consoleSendOnEnter->setCurrentIndex(2);
+    }
+    else
+    {//none
+        m_userInterface->consoleSendOnEnter->setCurrentIndex(3);
     }
 
     if(settings.consoleReceiveColor.isEmpty()){settings.consoleReceiveColor = "000000";}
@@ -1002,6 +1033,25 @@ void SettingsDialog::setAllSettingsSlot(Settings& settings, bool setTabIndex)
     if(setTabIndex)
     {
         m_userInterface->tabWidget->setCurrentIndex(settings.settingsDialogTabIndex);
+    }
+
+    //Update settings
+    m_userInterface->updateProxyAddress->setText(settings.updateSettings.proxyIpAddress);
+    m_userInterface->updateProxyPort->setText(QString("%1").arg(settings.updateSettings.proxyPort));
+    m_userInterface->updateProxyUserName->setText(settings.updateSettings.proxyUserName);
+    m_userInterface->updateProxyPassword->setText(settings.updateSettings.proxyPassword);
+    if(settings.updateSettings.proxySettings == 1)
+    {
+        m_userInterface->updateUseSystemProxy->setChecked(true);
+    }
+    else if(settings.updateSettings.proxySettings == 2)
+    {
+        m_userInterface->updateUseSpecificProxy->setChecked(true);
+    }
+    else
+    {
+        m_userInterface->updateNoProxy->setChecked(true);
+
     }
 
     updateSettings();
@@ -1389,12 +1439,7 @@ void SettingsDialog::initializeInterfaceTabs(void)
         m_userInterface->socketsTypeComboBox->setEnabled(true);
         m_userInterface->socketAddressLineEdit->setEnabled(true);
         m_userInterface->socketOwnPortLineEdit->setEnabled(true);
-        m_userInterface->serialPortInfoListBox->setEnabled(true);
-        m_userInterface->baudRateBox->setEnabled(true);
-        m_userInterface->stopBitsBox->setEnabled(true);
-        m_userInterface->parityBox->setEnabled(true);
-        m_userInterface->flowControlBox->setEnabled(true);
-        m_userInterface->dataBitsBox->setEnabled(true);
+
         m_userInterface->cheetahPortLineEdit->setEnabled(true);
         m_userInterface->cheetahSpiModeComboBox->setEnabled(true);
         m_userInterface->cheetahBaudrateLineEdit->setEnabled(true);
@@ -1428,10 +1473,10 @@ void SettingsDialog::initializeInterfaceTabs(void)
             m_userInterface->socketPartnerPortLineEdit->setEnabled(true);
         }
 
+        //Socket proxy settins.
         m_userInterface->noProxyRadioButton->setEnabled(true);
         m_userInterface->useSystemProxyRadioButton->setEnabled(true);
         m_userInterface->useSpecificProxyRadioButton->setEnabled(true);
-
         if(m_userInterface->useSpecificProxyRadioButton->isChecked())
         {
             m_userInterface->proxyAddressLineEdit->setEnabled(true);
@@ -1456,7 +1501,6 @@ void SettingsDialog::initializeInterfaceTabs(void)
             }
         }
 
-
     }
     else
     {
@@ -1465,12 +1509,7 @@ void SettingsDialog::initializeInterfaceTabs(void)
         m_userInterface->socketPartnerPortLineEdit->setEnabled(false);
         m_userInterface->socketAddressLineEdit->setEnabled(false);
         m_userInterface->socketOwnPortLineEdit->setEnabled(false);
-        m_userInterface->serialPortInfoListBox->setEnabled(false);
-        m_userInterface->baudRateBox->setEnabled(false);
-        m_userInterface->stopBitsBox->setEnabled(false);
-        m_userInterface->parityBox->setEnabled(false);
-        m_userInterface->flowControlBox->setEnabled(false);
-        m_userInterface->dataBitsBox->setEnabled(false);
+
         m_userInterface->cheetahPortLineEdit->setEnabled(false);
         m_userInterface->cheetahSpiModeComboBox->setEnabled(false);
         m_userInterface->cheetahBaudrateLineEdit->setEnabled(false);
@@ -1503,6 +1542,34 @@ void SettingsDialog::initializeInterfaceTabs(void)
         m_userInterface->proxyUserNameLineEdit->setEnabled(false);
         m_userInterface->proxyPasswordLineEdit->setEnabled(false);
 
+    }
+
+    //Update proxy settings.
+    m_userInterface->updateNoProxy->setEnabled(true);
+    m_userInterface->updateUseSystemProxy->setEnabled(true);
+    m_userInterface->updateUseSpecificProxy->setEnabled(true);
+    if(m_userInterface->updateUseSpecificProxy->isChecked())
+    {
+        m_userInterface->updateProxyAddress->setEnabled(true);
+        m_userInterface->updateProxyPort->setEnabled(true);
+        m_userInterface->updateProxyUserName->setEnabled(true);
+        m_userInterface->updateProxyPassword->setEnabled(true);
+    }
+    else
+    {
+        m_userInterface->updateProxyAddress->setEnabled(false);
+        m_userInterface->updateProxyPort->setEnabled(false);
+
+        if(m_userInterface->updateUseSystemProxy->isChecked())
+        {
+            m_userInterface->updateProxyUserName->setEnabled(true);
+            m_userInterface->updateProxyPassword->setEnabled(true);
+        }
+        else
+        {
+            m_userInterface->updateProxyUserName->setEnabled(false);
+            m_userInterface->updateProxyPassword->setEnabled(false);
+        }
     }
 }
 
@@ -1577,13 +1644,43 @@ void SettingsDialog::textFromGuiElementChangedSlot(QString text)
 }
 
 /**
- * Is called if the user clickes a proxy radio button.
+ * Is called if the user clickes a socket proxy radio button.
  */
-void SettingsDialog::proxyRadioButtonClickedSlot(void)
+void SettingsDialog::socketProxyRadioButtonClickedSlot(void)
 {
     initializeInterfaceTabs();
     updateSettings();
     emit configHasToBeSavedSignal();
+}
+
+/**
+ * Is called if the user clickes a update proxy radio button.
+ */
+void SettingsDialog::updateProxyRadioButtonClickedSlot(void)
+{
+    initializeInterfaceTabs();
+    updateSettings();
+    emit configHasToBeSavedSignal();
+}
+
+
+/**
+ * Checks if the mixed console chekcbox can be activated.
+ */
+void SettingsDialog::checkMixedConsoleCheckbox()
+{
+    if(!m_userInterface->consoleShowAsciiCheckBox->isChecked() &&
+       !m_userInterface->consoleShowHexCheckBox->isChecked() &&
+       !m_userInterface->consoleShowBinaryCheckBox->isChecked() &&
+       !m_userInterface->consoleShowDecimalCheckBox->isChecked())
+    {
+        m_userInterface->consoleShowMixedCheckBox->setChecked(false);
+        m_userInterface->consoleShowMixedCheckBox->setEnabled(false);
+    }
+    else
+    {
+        m_userInterface->consoleShowMixedCheckBox->setEnabled(true);
+    }
 }
 
 /**
@@ -1600,6 +1697,8 @@ void SettingsDialog::stateFromCheckboxChangedSlot(int state)
 
     updateSettings();
     emit configHasToBeSavedSignal();
+
+    checkMixedConsoleCheckbox();
 }
 
 /**
@@ -2088,6 +2187,27 @@ void SettingsDialog::updateSettings()
         {
             m_userInterface->consoleEditScriptPushButton->setEnabled(false);
         }
+    }
+
+    //Update settings,
+    m_currentSettings.updateSettings.proxyIpAddress = m_userInterface->updateProxyAddress->text();
+    m_currentSettings.updateSettings.proxyPort = m_userInterface->updateProxyPort->text().toUInt();
+    m_currentSettings.updateSettings.proxyUserName = m_userInterface->updateProxyUserName->text();
+    m_currentSettings.updateSettings.proxyPassword = m_userInterface->updateProxyPassword->text();
+
+    if(m_userInterface->updateUseSystemProxy->isChecked())
+    {
+        m_currentSettings.updateSettings.proxySettings = 1;
+
+    }
+    else if(m_userInterface->updateUseSpecificProxy->isChecked())
+    {
+        m_currentSettings.updateSettings.proxySettings = 2;
+
+    }
+    else
+    {
+        m_currentSettings.updateSettings.proxySettings = 0;
     }
 
 }

@@ -26,6 +26,7 @@
 #include <QMessageBox>
 #include <QTextStream>
 #include "mainwindow.h"
+#include "scriptwindow.h"
 #include <QCoreApplication>
 #include <QApplication>
 #include <QAction>
@@ -74,6 +75,7 @@ CustomConsoleLogObject::~CustomConsoleLogObject()
  */
 void CustomConsoleLogObject::createThread(bool debug)
 {
+
     m_script = new CustomConsoleLogThread(this, m_mainWindow, m_scriptPath, debug);
 
     qRegisterMetaType<QMessageBox::Icon>("QMessageBox::Icon");
@@ -257,7 +259,7 @@ void CustomConsoleLogThread::resumedByDebuggerSlot()
 /**
 * Debug timer slot (checks if the script is suspended by the debugger or is running).
 */
-void ScriptThread::debugTimerSlot(void)
+void CustomConsoleLogThread::debugTimerSlot(void)
 {
     static QScriptEngineDebugger::DebuggerState state = QScriptEngineDebugger::SuspendedState;
 
@@ -288,10 +290,18 @@ void CustomConsoleLogThread::loadCustomScriptSlot(QString scriptPath, bool* hasS
 {
     if(!scriptPath.isEmpty())
     {
+
+        QString unsavedInfoFile = ScriptWindow::getUnsavedInfoFileName(scriptPath);
+        if(QFileInfo().exists(unsavedInfoFile))
+        {//The file has unsaved changes.
+
+            emit showMessageBoxSignal(QMessageBox::Critical, "Warning", scriptPath + " is opened by an instance of ScriptEditor and contains unsaved changes.", QMessageBox::Ok);
+        }
+
         QFile scriptFile(scriptPath);
         if(!scriptFile.open(QIODevice::ReadOnly))
         {
-            emit showMessageBoxSignal(QMessageBox::Critical, "error", "could not open script file: " + scriptPath, QMessageBox::Ok);
+            emit showMessageBoxSignal(QMessageBox::Critical, "Error", "could not open script file: " + scriptPath, QMessageBox::Ok);
         }
         else
         {
@@ -312,6 +322,11 @@ void CustomConsoleLogThread::loadCustomScriptSlot(QString scriptPath, bool* hasS
             m_scriptEngine->globalObject().setProperty("cust", m_scriptEngine->newQObject(this));
             m_scriptSql->registerScriptMetaTypes(m_scriptEngine);
             m_converterObject.registerScriptMetaTypes(m_scriptEngine);
+            m_scriptEngine->globalObject().setProperty("scriptFile", m_scriptEngine->newQObject(this));
+
+            connect(this, SIGNAL(appendTextToConsoleSignal(QString, bool,bool)),
+                            m_mainWindow->getScriptWindow(), SLOT(appendTextToConsoleSlot(QString, bool,bool)), Qt::QueuedConnection);
+
 
 
             ScriptXmlReader::registerScriptMetaTypes(m_scriptEngine);

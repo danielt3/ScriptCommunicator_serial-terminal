@@ -29,6 +29,7 @@
 #include <QListWidget>
 #include <QSplitter>
 #include <QShortcut>
+#include <QFileInfo>
 #include "singledocument.h"
 #include <QTreeWidgetItem>
 #include "parseThread.h"
@@ -37,6 +38,7 @@
 namespace Ui {
 class MainWindow;
 }
+
 
 
 ///Main window class.
@@ -52,16 +54,13 @@ public:
     ~MainWindow();
 
     ///Adds a tab.
-    void addTab(QString script);
+    bool addTab(QString script, bool setTabIndex);
 
     ///Returns the folder ich which the ScriptEditor files
     QString getScriptEditorFilesFolder(void);
 
     ///Starts an other instance of ScriptEditor.
     void startScriptEditor(QStringList arguments);
-
-    ///Returns all functions in a script file.
-    QStringList getAllFunctions(int tabIndex);
 
     ///Returns all included scripts from a script file.
     QMap<QString, bool> getAllIncludedScripts(int tabIndex);
@@ -78,22 +77,22 @@ public:
     ///Returns true if the document in fileName has already been loaded.
     bool checkIfDocumentAlreadyLoaded(QString fileName, int &index);
 
-    ///The function index in the data map (tree widget).
-    static const quint32 FUNC_NAME_INDEX = Qt::UserRole + 1;
-
-    ///The tab index in the data map (tree widget).
-    static const quint32 TABINDEX_NAME_INDEX = Qt::UserRole + 2;
+    ///The index in the data map (tree widget) of the parsed entries pointer (ParsedEntry).
+    static const quint32 PARSED_ENTRY = Qt::UserRole + 3;
 
     ///The internal script editor version.
-    static const quint32 INTERNAL_VERSION = 1;
-
+    static const quint32 INTERNAL_VERSION = 2;
 
     ///Returns the corresponding ui file for a script.
     static QString getTheCorrespondingUiFile(QString scriptFile);
 
+    ///Clears the current indicator.
+    void clearCurrentIndicator(void);
+
 signals:
     ///Is emitted if the parsing of the source files shall be started.
-    void parseSignal(QString& currentText, QString activeDocument);
+    void parseSignal(QMap<QString, QString> loadedUiFile,QMap<int, QString> loadedScripts, QMap<int, QString> loadedScriptsIndex,
+                     bool loadedFileChanged, bool parseOnlyUIFiles);
 
 protected:
     ///Close event.
@@ -108,14 +107,22 @@ protected:
     ///Drop event.
     void dropEvent(QDropEvent *event);
 
+
 private slots:
+
+    ///Is called if the user double clicks a postion in the editor.
+    void handleDoubleClicksInEditor(int position, int line, int modifiers);
 
     ///Is called if the parsing is finished.
     ///Note: autoCompletionApiFiles contains the auto-completion entries for all parsed files.
-    void parsingFinishedSlot(QMap<QString, QStringList>& autoCompletionEntries, QMap<QString, QStringList>& autoCompletionApiFiles);
+    void parsingFinishedSlot(QMap<QString, QStringList> autoCompletionEntries, QMap<QString, QStringList> autoCompletionApiFiles,
+                             QMap<QString, QStringList> parsedUiObjects, QMap<int, QVector<ParsedEntry> > parsedEntries, bool doneParsing, bool parseOnlyUIFiles);
 
     ///Opens a new file.
     void open();
+
+    ///Opens a set font dialog.
+    void setFont();
 
     ///Saves the current script file (under the current file name).
     bool save();
@@ -126,6 +133,12 @@ private slots:
     ///Is called if the find button the the find dialog has been clicked.
     void findButtonSlot();
 
+    ///Is called if the find all or the replace all button in the find dialog has been clicked.
+    void findReplaceAllButtonSlot(bool replace=false);
+
+    ///Is called if the edit ui button has been clicked.
+    void editUiButtonSlot();
+
     ///Is called if the replace button the the find dialog has been clicked.
     void replaceButtonSlot();
 
@@ -135,9 +148,18 @@ private slots:
     ///Opens the find dialog.
     void find();
 
+    ///Is called if the modified property of a document has been changed.
+    void modificationChangedSlot(void);
+
     ///Checks if the current script file has been changed. If the files has been changed
     ///it displays this in the window title.
-    void documentWasModified();
+    void documentWasModified(int index=-1);
+
+    ///Is called if the user double clicks on the ui view.
+    void uiViewDoubleClicked(QTreeWidgetItem* item, int column);
+
+    ///Is called if the user double clicks on the find result list.
+    void findResultsDoubleClicked(QTreeWidgetItem* item, int column);
 
     ///Is called if the user double clicks on the function list.
     void functionListDoubleClicked(QTreeWidgetItem*item, int column);
@@ -153,8 +175,17 @@ private slots:
     ///Is called if current tab index has been changed.
     void tabIndexChangedSlot(int index);
 
-    ///Is called if a tab shall be closed.
-    void tabCloseRequestedSlot(int index);
+    ///Is called if an info tab shall be closed.
+    void infoTabCloseRequestedSlot(int index);
+
+    ///Is called if the user moves a tab.
+    void tabMoved(int from, int to);
+
+    ///Is called if a documents tab shall be closed.
+    void documentsTabCloseRequestedSlot(int index);
+
+    ///Reload action slot.
+    void reloadSlot();
 
     ///Cut action slot.
     void cutSlot();
@@ -174,25 +205,43 @@ private slots:
     ///New action slot.
     void newSlot();
 
-    ///Edit UI action slot.
-    void editUiSlot();
+    ///Close document action slot.
+    void closeDocumentSlot();
 
     ///Open all included action slot.
     void openAllIncludedScriptsSlot();
 
+    ///Is call by m_checkForFileChangesTimer and checks for changes in the loaded files.
+    void checkForFileChanges(void);
+
     ///Is called if the parse timer times out.
-    void parseTimeout(void);
+    void parseTimeout(bool parseOnlyUIFiles = false);
+
+    ///Is called if the mouse move timer times out.
+    void mouseMoveTimerSlot();
+
+    ///Is called if an indicator is clicked.
+    void indicatorClickedSlot(int line, int index, Qt::KeyboardModifiers modifier);
+
+    ///Is called if an indicator is clicked.
+    void indicatorClickTimerSlot();
 
 private:
 
     ///The user interface.
     Ui::MainWindow *ui;
 
+    ///Sets the state of the load all scripts button.
+    void setStateLoadAllIncludedScriptsButton(void);
+
+    ///Removes the lock of a loaded script file.
+    void removeFileLock(int index);
+
+    ///Removes the saved info file.
+    void removeSavedInfoFile(QString name);
+
     ///Initializes all actions.
     void initActions();
-
-    ///Enables or dissbles the edit ui action.
-    void enableDisableActionEditUI();
 
     ///Reads the editor settings.
     void readSettings();
@@ -203,11 +252,29 @@ private:
     ///Displays a dialog if the current script has been changed.
     bool maybeSave(int index);
 
+    ///Returns true if outlineTreeWidget contains an element with the given name.
+    bool checkIfElementsInOutlineTree(QString name);
+
     ///Loads a file.
     bool loadFile(const QString &fileName);
 
-    ///Inserts all function (form the current script file) into the function list view.
-    void insertAllFunctionInListView();
+    ///Inserts all UI objects in the ui view
+    void insertAllUiObjectsInUiView(QMap<QString, QStringList> parsedUiObjects);
+
+    ///Inserts a subelement into the script view.
+    bool inserSubElementsToScriptView(QTreeWidgetItem* parent, QVector<ParsedEntry> parsedEntries, QString parentName);
+
+    ///Inserts a file element in the scripts outline.
+    void insertFileElementForTabIndex(int tabIndex, QColor textColor);
+
+    ///Inserts all parsed elements in the  script view and displays all parse errors (annotations).
+    bool insertFillScriptViewAndDisplayErrors(QMap<int, QVector<ParsedEntry> > &parsedEntries);
+
+    ///Clears the outline window.
+    void clearOutlineWindow(int tabIndex);
+
+    ///Clears the ui window.
+    void clearUiWindow(void);
 
     ///Starts the designer.
     void startDesigner(QString uiFile);
@@ -218,6 +285,16 @@ private:
     ///Sets the current file (name).
     void setCurrentFile(const QString &fileName);
 
+    ///Returns the tmp directory for a file.
+    QString getTmpDirectory(QString fileName){return QFileInfo(fileName).path() +"/.tmp";}
+
+    ///Returns the lock file name for a file.
+    QString getLockFileName(QString fileName){return getTmpDirectory(fileName) + "/" + QFileInfo(fileName).fileName() + ".lock";}
+
+    ///Returns the unsaved info file name for a file.
+    QString getUnsavedInfoFileName(QString fileName){return getTmpDirectory(fileName) + "/" + QFileInfo(fileName).fileName() + ".unsaved";}
+
+    ///Creates a document title for a new document.
     QString createNewDocumentTitle(void);
 
     ///Returns the current file name without the path.
@@ -235,14 +312,47 @@ private:
     ///Shortcut for finding text in the current script file.
     QShortcut* m_findShortcut;
 
-    ///All function which are displayed in the function list.
-    QStringList m_allFunction;
-
     ///The parse timer.
     QTimer m_parseTimer;
 
     ///The parse thread.
-    ParseThread m_parseThread;
+    ParseThread* m_parseThread;
+
+    ///The current font.
+    QFont m_currentFont;
+
+    ///True if the parse thread has finished.
+    bool m_parsingFinished;
+
+    ///The lock files for all open documents.
+    QMap<QString, QFile*> m_lockFiles;
+
+    ///The unsaved info files for all documents which have unsaved changes.
+    QMap<QString, QFile*> m_unsavedInfoFiles;
+
+    ///This timer checks for changes in the loades files.
+    QTimer m_checkForFileChangesTimer;
+
+    ///The last mouse move event.
+    QMouseEvent m_lastMouseMoveEvent;
+
+    ///This timer is started if a mouse move event occurs (calls mouseTimerSlot).
+    QTimer m_mouseEventTimer;
+
+    ///True if the ctrl key is pressed.
+    bool m_ctrlIsPressed;
+
+    ///This timer is started if an indicator is clicked. (calls indicatorClickTimerSlot)
+    QTimer m_indicatorClickTimer;
+
+    ///The position of the last click indicator event.
+    long m_lastIndicatorClickPosition;
+
+    ///The saved auto completion entries.
+    QMap<QString, QStringList> m_autoCompletionEntries;
+
+    ///True if parse error shall be displayed.
+    bool m_showParseError;
 
 };
 

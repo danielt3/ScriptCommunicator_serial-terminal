@@ -24,6 +24,7 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "ui_settingsdialog.h"
 #include "ui_createSceFile.h"
 #include "settingsdialog.h"
 #include "sendwindow.h"
@@ -31,6 +32,11 @@
 #include <QScrollBar>
 #include <QMutex>
 #include <QTime>
+
+#ifdef Q_OS_WIN32
+#include <Windows.h>
+#include <QtWinExtras/QtWin>
+#endif
 
 #include <QMessageBox>
 #include <QtSerialPort/QSerialPort>
@@ -44,18 +50,19 @@
 #include "searchconsole.h"
 #include "customConsoleLogObject.h"
 #include "scriptTcpClient.h"
+#include "version.h"
 
 ///The current version of ScriptCommunicator.
-const QString MainWindow::VERSION = "04.16";
+const QString MainWindow::VERSION = SCRIPT_COMMUNICATOR_VERSION;
 
 #ifdef Q_OS_WIN32
-const QString MainWindow::INIT_MAIN_CONFIG_FILE = "initialSettingsWin.xml";
+const QString MainWindow::INIT_MAIN_CONFIG_FILE = "initialSettingsWin.config";
 #else
 
 #ifdef Q_OS_MAC
-const QString MainWindow::INIT_MAIN_CONFIG_FILE = "initialSettingsMac.xml";
+const QString MainWindow::INIT_MAIN_CONFIG_FILE = "initialSettingsMac.config";
 #else
-const QString MainWindow::INIT_MAIN_CONFIG_FILE = "initialSettings.xml";
+const QString MainWindow::INIT_MAIN_CONFIG_FILE = "initialSettings.config";
 #endif//#ifdef Q_OS_MAC
 
 #endif
@@ -96,25 +103,41 @@ void DragDropLineEdit::dropEvent(QDropEvent *event)
         event->acceptProposedAction();
     }
 }
-/**
- * The user has pressed a key.
- *
- * @param event
- *      The key event.
- */
-void SendConsole::keyPressEvent(QKeyEvent *event)
-{
-    if(m_mainWindow->m_userInterface->interactiveConsoleCheckBox->isChecked())
-    {
-        const Settings* settings = m_mainWindow->m_settingsDialog->settings();
 
-        m_mainWindow->m_sendWindow->sendDataWithTheMainInterface(event->text().toLocal8Bit().replace("\r", settings->consoleSendOnEnter.toLocal8Bit()), this);
-    }
-    else
+
+/**
+ * Is called if the document's content changes.
+ *
+ * @param from
+ *      The position of the character in the document where the change occurred.
+ * @param charsRemoved
+ *      The number of chars removed.
+ * @param charsAdded
+ *      The number of chars added.
+ */
+void SendConsole::contentsChangeSlot(int from, int charsRemoved, int charsAdded)
+{
+    (void)charsRemoved;
+
+    if(m_mainWindow->m_userInterface->interactiveConsoleCheckBox->isChecked() && (charsAdded != 0))
     {
-        QTextEdit::keyPressEvent( event );
+        QString added = toPlainText().mid(from,charsAdded);
+
+        if(!added.isEmpty())
+        {
+            QTextCursor cursor = textCursor();
+            cursor.clearSelection();
+            cursor.setPosition(from);
+            cursor.setPosition(from + (charsAdded - charsRemoved), QTextCursor::KeepAnchor);
+            cursor.removeSelectedText();
+
+
+            const Settings* settings = m_mainWindow->m_settingsDialog->settings();
+            m_mainWindow->m_sendWindow->sendDataWithTheMainInterface(added.toLocal8Bit().replace("\n", settings->consoleSendOnEnter.toLocal8Bit()), this);
+        }
     }
 }
+
 
 /**
  * Use Ctrl + mouse wheel to increase/decrease font size in consoles.
@@ -165,8 +188,13 @@ void SendConsole::wheelEvent(QWheelEvent *event)
  *      True if the script window shall be minimized (command-line mode).
  * @param extraPluginPaths
  *      Extra plug-in search paths.
+ * @param configFile
+ *      The command line config file.
+ * @param iconFile
+ *      The icon file.
  */
-MainWindow::MainWindow(QStringList scripts, bool withScriptWindow, bool scriptWindowIsMinimized, QStringList extraPluginPaths, QStringList scriptArguments) :
+MainWindow::MainWindow(QStringList scripts, bool withScriptWindow, bool scriptWindowIsMinimized, QStringList extraPluginPaths, QStringList scriptArguments,
+                       QString configFile, QString iconFile) :
     QMainWindow(0),
     m_userInterface(new Ui::MainWindow), m_isConnected(false),
     m_sendWindowPositionAndSizeloaded(false), m_scriptWindowPositionAndSizeloaded(false),
@@ -265,7 +293,7 @@ MainWindow::MainWindow(QStringList scripts, bool withScriptWindow, bool scriptWi
     connect(m_settingsDialog, SIGNAL(deleteLogFileSignal(QString)),this, SLOT(deleteLogFileSlot(QString)));
     connect(m_settingsDialog, SIGNAL(configHasToBeSavedSignal()),this, SLOT(configHasToBeSavedSlot()));
     connect(m_settingsDialog, SIGNAL(conectionTypeChangesSignal()),this, SLOT(conectionTypeChangesSlot()));
-    connect(m_settingsDialog, SIGNAL(appendTimestampAtLogsChangedSignal()),this, SLOT(reopenLogsSlot()));
+    connect(m_settingsDialog, SIGNAL(appendTimestampAtLogsChangedSignal()),this, SLOT(reLogsSlot()));
 
     qRegisterMetaType<Settings>("Settings");
     connect(this, SIGNAL(connectDataConnectionSignal(Settings, bool)),m_mainInterface,
@@ -354,18 +382,37 @@ MainWindow::MainWindow(QStringList scripts, bool withScriptWindow, bool scriptWi
 
         m_mainConfigFileList = getAndCreateProgramUserFolder() + "/mainConfigFileList.txt";
 
-        QStringList list = readMainConfigFileList(false);
-
         QString defaultConfig;
-
-        for(auto el : list)
+        QStringList list = readMainConfigFileList(false);
+        if(configFile.isEmpty())
         {
-            if(el.indexOf("<DEFAULT_CONFIG_FILE>:") != -1)
+            for(auto el : list)
             {
-                defaultConfig = el;
-                defaultConfig.remove("<DEFAULT_CONFIG_FILE>:");
-                break;
+                if(el.indexOf("<DEFAULT_CONFIG_FILE>:") != -1)
+                {
+                    defaultConfig = el;
+                    defaultConfig.remove("<DEFAULT_CONFIG_FILE>:");
+                    break;
+                }
             }
+        }
+        else
+        {
+            defaultConfig = configFile;
+
+            QStringList list = readMainConfigFileList(true);
+            int index = list.indexOf("<DEFAULT_CONFIG_FILE>:" + configFile);
+            if(index == -1)
+            {//configFile is not the default config.
+
+                index = list.indexOf(configFile);
+                if(index != -1)
+                {
+                    list.removeAt(index);
+                }
+                list.push_front(configFile);
+            }
+            saveMainConfigFileList(list);
         }
 
         if(defaultConfig.isEmpty())
@@ -378,11 +425,11 @@ MainWindow::MainWindow(QStringList scripts, bool withScriptWindow, bool scriptWi
                 QString templateFile = getScriptCommunicatorFilesFolder() + "/templates/" + INIT_MAIN_CONFIG_FILE;
                 QFile::copy(templateFile, m_mainConfigFile);
 
-                QFile::copy(getScriptCommunicatorFilesFolder() + "/templates/initalSequences.xml",
-                            getAndCreateProgramUserFolder() + "/initalSequences.xml");
+                QFile::copy(getScriptCommunicatorFilesFolder() + "/templates/initalSequences.seq",
+                            getAndCreateProgramUserFolder() + "/initalSequences.seq");
 
-                QFile::copy(getScriptCommunicatorFilesFolder() + "/templates/initalScripts.xml",
-                            getAndCreateProgramUserFolder() + "/initalScripts.xml");
+                QFile::copy(getScriptCommunicatorFilesFolder() + "/templates/initalScripts.scripts",
+                            getAndCreateProgramUserFolder() + "/initalScripts.scripts");
 
                 list.push_back(m_mainConfigFile);
                 saveMainConfigFileList(list);
@@ -496,6 +543,18 @@ MainWindow::MainWindow(QStringList scripts, bool withScriptWindow, bool scriptWi
 
     }
 
+#ifdef Q_OS_WIN32
+        QString name = m_mainConfigFile.isEmpty() ? QString("%1").arg(QDateTime::currentMSecsSinceEpoch()) : m_mainConfigFile;
+        //Specifiy a unique application-defined Application User Model ID (AppUserModelID) that identifies the current process to the taskbar.
+        //Note: Because of this id every instance of ScriptCommunicator has its own icon group in the task bar.
+        QtWin::setCurrentProcessExplicitAppUserModelID("ScriptCommunicator_" + name);
+#endif
+
+    if(!iconFile.isEmpty())
+    {
+        setMainWindowAndTaskBarIconSlot(iconFile);
+    }
+
 }
 
 
@@ -515,6 +574,18 @@ MainWindow::~MainWindow()
     delete m_mainInterface;
     delete m_addMessageDialog;
     delete m_searchConsole;
+}
+
+/**
+ * Sets the main window and the ScriptCommunicator task bar icon.
+ * Supported formats: .ico, .gif, .png, .jpeg, .tiff, .bmp, .icns.
+ * @param iconFile
+ *      The file name of the icon.
+ */
+void MainWindow::setMainWindowAndTaskBarIconSlot(QString iconFile)
+{
+    setWindowIcon(QIcon(iconFile));
+    qApp->setWindowIcon(QIcon(iconFile));
 }
 
 /**
@@ -1114,11 +1185,23 @@ void MainWindow::show(void)
 
 /**
  * Loads the main configuration.
+ *
+ * return
+ *      True on success.
  */
-void MainWindow::loadSettings()
+bool MainWindow::loadSettings()
 {
+    bool result = true;
+
     if(m_commandLineScripts.isEmpty())
     {
+        m_scriptWindow->stopAllScripts();
+
+        while(!m_scriptWindow->allScriptsHaveBeenStopped())
+        {
+            QThread::msleep(10);
+            QCoreApplication::processEvents();
+        }
 
         setWindowTitle("ScriptCommunicator " + MainWindow::VERSION + "   " + m_mainConfigFile);
 
@@ -1144,13 +1227,19 @@ void MainWindow::loadSettings()
         m_toolBoxSplitterSizesSecond.append(m_toolBoxSplitterSizeSecond);
         m_currentToolBoxIndex = m_userInterface->toolBox->currentIndex();
 
-        if (settingsFile.open(QIODevice::ReadOnly))
+        if (!settingsFile.open(QIODevice::ReadOnly))
+        {
+            QMessageBox::critical(this, "open error", "could not open " + m_mainConfigFile);
+            result = false;
+        }
+        else
         {
             QByteArray content = settingsFile.readAll();
             settingsFile.close();
             if (!doc.setContent(content))
             {
                 QMessageBox::critical(this, "parse error", "could not parse " + m_mainConfigFile);
+                result = false;
             }
             else
             {
@@ -1391,7 +1480,7 @@ void MainWindow::loadSettings()
 
                         if(m_isFirstProgramStart)
                         {
-                            m_sendWindow->setCurrentSequenceFileName (getAndCreateProgramUserFolder() + "/initalSequences.xml");
+                            m_sendWindow->setCurrentSequenceFileName (getAndCreateProgramUserFolder() + "/initalSequences.seq");
                         }
                         else
                         {
@@ -1611,7 +1700,7 @@ void MainWindow::loadSettings()
 
                         if(m_isFirstProgramStart)
                         {
-                            m_scriptWindow->setCurrentScriptConfigFileName(getAndCreateProgramUserFolder() + "/initalScripts.xml");
+                            m_scriptWindow->setCurrentScriptConfigFileName(getAndCreateProgramUserFolder() + "/initalScripts.scripts");
                         }
                         else
                         {
@@ -1721,6 +1810,26 @@ void MainWindow::loadSettings()
                     }
                 }
 
+                {//update setting
+
+                    QDomNodeList nodeList = docElem.elementsByTagName("updateSetting");
+                    if(!nodeList.isEmpty())
+                    {
+                        QDomNode node = nodeList.at(0);
+
+                        currentSettings.updateSettings.proxySettings = node.attributes().namedItem("proxySettings").nodeValue().toUInt();
+                        currentSettings.updateSettings.proxyIpAddress = node.attributes().namedItem("proxyIpAddress").nodeValue();
+                        currentSettings.updateSettings.proxyPort = node.attributes().namedItem("proxyPort").nodeValue().toUInt();
+                        currentSettings.updateSettings.proxyUserName = node.attributes().namedItem("proxyUserName").nodeValue();
+                        currentSettings.updateSettings.proxyPassword = node.attributes().namedItem("proxyPassword").nodeValue();
+                    }
+                    else
+                    {
+                        currentSettings.updateSettings.proxySettings = 1;//use system settings.
+                    }
+
+                }
+
                 m_settingsDialog->blockSignals(true);
                 m_settingsDialog->setAllSettingsSlot(currentSettings, true);
                 m_settingsDialog->blockSignals(false);
@@ -1773,6 +1882,8 @@ void MainWindow::loadSettings()
         m_userInterface->actionReopenAllLogs->setVisible(currentSettings.appendTimestampAtLogFileName);
 
     }
+
+    return result;
 }
 
 /**
@@ -2491,6 +2602,18 @@ void MainWindow::saveSettings()
                 writeXmlElement(xmlWriter, "createSceWindow", createSceSettings);
             }
 
+            {//update settings
+                std::map<QString, QString> updateSetting =
+                {std::make_pair(QString("proxyIpAddress"), QString("%1").arg(currentSettings->updateSettings.proxyIpAddress)),
+                 std::make_pair(QString("proxyPassword"), QString("%1").arg(currentSettings->updateSettings.proxyPassword)),
+                 std::make_pair(QString("proxyPort"), QString("%1").arg(currentSettings->updateSettings.proxyPort)),
+                 std::make_pair(QString("proxySettings"), QString("%1").arg(currentSettings->updateSettings.proxySettings)),
+                 std::make_pair(QString("proxyUserName"), QString("%1").arg(currentSettings->updateSettings.proxyUserName)),
+                };
+
+                writeXmlElement(xmlWriter, "updateSetting", updateSetting);
+            }
+
             xmlWriter.writeEndElement();//"settings"
             xmlWriter.writeEndDocument();
 
@@ -2824,6 +2947,7 @@ void MainWindow::customLogActivatedSlot(bool activated)
 void MainWindow::setConnectionButtonsSlot(bool enable)
 {
     m_userInterface->actionConnect->setEnabled(enable);
+    m_settingsDialog->getUserInterface()->connectButton->setEnabled(enable);
     m_settingsDialog->setInterfaceSettingsCanBeChanged(enable);
 }
 
@@ -2890,6 +3014,7 @@ void MainWindow::dataConnectionStatusSlot(bool isConnected, QString message, boo
         m_isConnectedWithCan = (currentSettings->connectionType == CONNECTION_TYPE_PCAN) ? true : false;
         showConnect = false;
         m_userInterface->actionConnect->setText("Disconnect");
+        m_settingsDialog->getUserInterface()->connectButton->setText("disconnect");
     }
     else
     {
@@ -2897,6 +3022,7 @@ void MainWindow::dataConnectionStatusSlot(bool isConnected, QString message, boo
         m_isConnectedWithCan = false;
         showConnect = isWaiting ? false : true;
         m_userInterface->actionConnect->setText(isWaiting ? "Stop waiting" : "Connect");
+        m_settingsDialog->getUserInterface()->connectButton->setText(isWaiting ? "stop waiting" : "connect");
     }
 
     m_userInterface->actionConnect->setIcon(showConnect ? QIcon(":/connect") : QIcon(":/disconnect"));
@@ -2924,6 +3050,59 @@ void MainWindow::toggleConnectionSlot(bool connectionStatus)
         //disconnect
         emit connectDataConnectionSignal(settings, false);
     }
+}
+
+/**
+ * Parses a API file and returns a semicolon separated list with all public functions, signals and properties.
+ * @param name
+ *      The name of the API file.
+ * @return
+ *      The list.
+ */
+QString MainWindow::parseApiFile(QString name)
+{
+    QString result;
+    QFile file(MainWindow::getScriptCommunicatorFilesFolder() + "/apiFiles/" + name);
+    if (file.open(QFile::ReadOnly))
+    {
+        QTextStream in(&file);
+        QString singleLine = in.readLine();
+        while(!singleLine.isEmpty())
+        {
+            QString singleEntry;
+            QStringList list = singleLine.split(":");
+
+            if(list.length() >= 3)
+            {
+                if((list.length() > 3) && (list[2].indexOf("\\n") == -1) )
+                {
+                    singleEntry = list[2];
+                    list = list[3].split("\\n");
+                    singleEntry = list[0] + " " + singleEntry;
+                }
+                else
+                {//Signals.
+                    list = list[2].split("\\n");
+                    singleEntry = list[0];
+                }
+
+                if(result.isEmpty())
+                {//The current entry is the first entry.
+
+                    result += singleEntry;
+                }
+                else
+                {//The current entry is not the first entry.
+
+                    result += ";" + singleEntry;
+                }
+            }
+
+            singleLine = in.readLine();
+        }
+        file.close();
+    }
+    return result;
 }
 
 /**
@@ -3293,6 +3472,9 @@ void MainWindow::appendConsoleStringToConsole(QString* consoleString, QTextEdit*
 
     if(consoleString->size() > 0)
     {
+        textEdit->blockSignals(true);
+        textEdit->document()->blockSignals(true);
+
         //Store the scroll bar position.
         int val = textEdit->verticalScrollBar()->value();
 
@@ -3311,6 +3493,9 @@ void MainWindow::appendConsoleStringToConsole(QString* consoleString, QTextEdit*
         {   //Move the scroll bar to the end.
             textEdit->horizontalScrollBar()->setSliderPosition(0);
         }
+
+        textEdit->blockSignals(false);
+        textEdit->document()->blockSignals(false);
     }
 }
 
@@ -3356,6 +3541,8 @@ void MainWindow::connectButtonSlot(void)
 void MainWindow::initActionsConnections()
 {
     connect(m_userInterface->actionConnect, SIGNAL(triggered()), this, SLOT(connectButtonSlot()));
+    connect(m_settingsDialog->getUserInterface()->connectButton, SIGNAL(clicked(bool)), this, SLOT(connectButtonSlot()));
+
     connect(m_userInterface->actionQuit, SIGNAL(triggered()), this, SLOT(close()));
     connect(m_userInterface->actionConfigure, SIGNAL(triggered()), this, SLOT(showSettingsWindowSlot()));
     connect(m_userInterface->actionClear, SIGNAL(triggered()), this, SLOT(clearConsoleSlot()));
@@ -3382,6 +3569,7 @@ void MainWindow::initActionsConnections()
     connect(m_userInterface->actionVideo, SIGNAL(triggered()),this, SLOT(watchVideoSlot()));
     connect(m_userInterface->actionGetSupport, SIGNAL(triggered()),this, SLOT(getSupportSlot()));
     connect(m_userInterface->actionCheckForUpdates, SIGNAL(triggered()),this, SLOT(checkForUpdatesSlot()));
+    connect(m_settingsDialog->getUserInterface()->checkForUpdates, SIGNAL(pressed()),this, SLOT(checkForUpdatesSlot()));
 
     connect(m_userInterface->actionAddScript, SIGNAL(triggered()),this, SLOT(addScriptSlot()));
     connect(m_userInterface->actionEditScript, SIGNAL(triggered()),this, SLOT(editScriptSlot()));
@@ -3448,7 +3636,8 @@ void MainWindow::openTheManualSlot(void)
         QMessageBox::critical(this, "error", "could not open " + name);
     }
 #else
-    if(!QDesktopServices::openUrl(QUrl(name, QUrl::TolerantMode)))
+    name = getScriptCommunicatorFilesFolder() + "/" + name;
+    if(!QDesktopServices::openUrl(QUrl::fromLocalFile(name)))
     {
         QMessageBox::critical(this, "error", "could not open " + name);
     }
@@ -4286,11 +4475,11 @@ void MainWindow::checkForUpdatesSlot()
 {
     Settings settings = *m_settingsDialog->settings();
     QString type = "NO_PROXY";
-    if(settings.socketSettings.proxySettings == 1)
+    if(settings.updateSettings.proxySettings == 1)
     {
         type = "SYSTEM_PROXY";
     }
-    else if(settings.socketSettings.proxySettings == 2)
+    else if(settings.updateSettings.proxySettings == 2)
     {
         type = "CUSTOM_PROXY";
     }
@@ -4299,10 +4488,10 @@ void MainWindow::checkForUpdatesSlot()
         type = "NO_PROXY";
     }
 
-    QNetworkProxy proxy = ScriptTcpClient::createProxy(type, settings.socketSettings.proxyUserName,
-                                                       settings.socketSettings.proxyPassword,
-                                                       settings.socketSettings.proxyIpAddress,
-                                                       settings.socketSettings.proxyPort);
+    QNetworkProxy proxy = ScriptTcpClient::createProxy(type, settings.updateSettings.proxyUserName,
+                                                       settings.updateSettings.proxyPassword,
+                                                       settings.updateSettings.proxyIpAddress,
+                                                       settings.updateSettings.proxyPort);
 
     m_userInterface->actionCheckForUpdates->setEnabled(false);
     updatesManager = new QNetworkAccessManager(this);
@@ -4383,14 +4572,14 @@ void MainWindow::updateManagerReplyFinished(QNetworkReply* reply)
 
         if(pageIsInvalid)
         {
-            QMessageBox msgBox(QMessageBox::Information, "error while searching for an update", "Invalid data received.");
-            msgBox.setTextFormat(Qt::RichText);
+            QMessageBox msgBox(QMessageBox::Information, "error while searching for an update", "Invalid data received: " + result);
+            msgBox.setTextFormat(Qt::PlainText);
             msgBox.exec();
         }
     }
     else
     {
-        QString text = "Connection error (eror code: %1). Are you connected with the internet and are your proxy settings (socket tab in the setting dialog) correct?";
+        QString text = "Connection error (eror code: %1). Are you connected with the internet and are your proxy settings (update tab in the setting dialog) correct?";
         text = text.arg(error);
         QMessageBox msgBox(QMessageBox::Information, "connection error",text);
         msgBox.setTextFormat(Qt::RichText);
@@ -4471,7 +4660,7 @@ void MainWindow::printConsoleSlot()
 void MainWindow::copyConfigSlot()
 {
     QString tmpFileName = QFileDialog::getSaveFileName(this, tr("Copy main config file"),
-                                                       getAndCreateProgramUserFolder(), tr("XML files (*.xml);;Files (*)"));
+                                                       getAndCreateProgramUserFolder(), tr("main config files (*.config);;Files (*)"));
     if(!tmpFileName.isEmpty())
     {
         saveSettings();
@@ -4532,7 +4721,7 @@ bool MainWindow::createConfig(bool isCallFromButton)
 {
     bool newConfigUsed = false;
     QString tmpFileName = QFileDialog::getSaveFileName(this, tr("Create main config file"),
-                                                       getAndCreateProgramUserFolder(), tr("XML files (*.xml);;Files (*)"));
+                                                       getAndCreateProgramUserFolder(), tr("main config files (*.config);;Files (*)"));
     if(!tmpFileName.isEmpty())
     {
         if(isCallFromButton)
@@ -4710,7 +4899,7 @@ void MainWindow::loadPreviousConfigSlot()
 void MainWindow::loadConfigSlot()
 {
     QString tmpFileName = QFileDialog::getOpenFileName(this, tr("Open main config file"),
-                                                       getAndCreateProgramUserFolder(),tr("XML files (*.xml);;Files (*)"));
+                                                       getAndCreateProgramUserFolder(),tr("main config files (*.config);;Files (*)"));
 
     if(!tmpFileName.isEmpty())
     {

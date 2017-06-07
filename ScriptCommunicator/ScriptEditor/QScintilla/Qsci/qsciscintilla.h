@@ -630,6 +630,7 @@ public:
     //! \sa fillIndicatorRange()
     void clearIndicatorRange(int lineFrom, int indexFrom, int lineTo,
             int indexTo, int indicatorNumber);
+    void clearIndicatorRangeWithPosition(int start, int finish, int indicatorNumber);
 
     //! Clear all registered images.
     //!
@@ -719,6 +720,7 @@ public:
     //! \sa clearIndicatorRange()
     void fillIndicatorRange(int lineFrom, int indexFrom, int lineTo,
             int indexTo, int indicatorNumber);
+    void fillIndicatorRangeWithPosition(int start, int finish, int indicatorNumber);//Position based.
 
     //! Find the first occurrence of the string \a expr and return true if
     //! \a expr was found, otherwise returns false.  If \a expr is found it
@@ -1520,7 +1522,7 @@ public slots:
 
     //! Display a call tip based on the the characters immediately to the left
     //! of the cursor.
-    virtual void callTip();
+    virtual bool callTip(int startPos = -1);
 
     //! Deletes all the text in the text edit.
     virtual void clear();
@@ -1703,6 +1705,8 @@ public slots:
     //! \sa getCursorPosition()
     virtual void setCursorPosition(int line, int index);
 
+    void setCursorPosition(const QPoint &pos);
+
     //! Sets the end-of-line mode to \a mode.  The default is the platform's
     //! natural mode.
     //!
@@ -1832,6 +1836,7 @@ public slots:
     //! \sa getSelection()
     virtual void setSelection(int lineFrom, int indexFrom, int lineTo,
             int indexTo);
+    void setSelectionFromPosition(int start, int end);
 
     //! Sets the background colour, including the alpha component, of selected
     //! text to \a col.
@@ -1928,6 +1933,8 @@ public slots:
     //! \sa zoomIn(), zoomOut()
     virtual void zoomTo(int size);
 
+    QString wordAtPosition(int position, bool allowDot=false) const;
+
 signals:
     //! This signal is emitted whenever the cursor position changes.  \a line
     //! contains the line number and \a index contains the character index
@@ -2000,6 +2007,9 @@ signals:
     //! \sa showUserList()
     void userListActivated(int id, const QString &string);
 
+    void zoomInSignal(void);
+    void zoomOutSignal(void);
+
 protected:
     //! \reimp
     virtual bool event(QEvent *e);
@@ -2017,6 +2027,8 @@ protected:
 
     ///Wheel event
     void wheelEvent(QWheelEvent* event);
+
+    virtual QString getContextString(int line) = 0;
 
 private slots:
     void handleCallTipClick(int dir);
@@ -2094,8 +2106,6 @@ private:
     bool ensureRW();
     void insertAtPos(const QString &text, int pos);
     static int mapModifiers(int modifiers);
-
-    QString wordAtPosition(int position) const;
 
     ScintillaBytes styleText(const QList<QsciStyledText> &styled_text,
             char **styles, int style_offset = 0);

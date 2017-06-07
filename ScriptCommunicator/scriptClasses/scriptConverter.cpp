@@ -49,7 +49,7 @@ QString ScriptConverter::byteArrayToHexString(QVector<unsigned char> data)
     return result;
 }
 /**
- * Converts a byte array which contains ascii characters into a ascii string (QString).
+ * Converts a byte array which contains ascii characters into an ascii string (QString).
  * @param data
  *      The data.
  * @return
@@ -57,12 +57,19 @@ QString ScriptConverter::byteArrayToHexString(QVector<unsigned char> data)
  */
 QString ScriptConverter::byteArrayToString(QVector<unsigned char> data)
 {
-    QString result;
-    for(auto val : data)
-    {
-        result.append(static_cast<char>(val));
-    }
-    return result;
+    return QString::fromLocal8Bit((const char*)data.constData(), data.length());
+}
+
+/**
+ * Converts a byte array which contains utf8 characters into an utf8 string (QString).
+ * @param data
+ *      The data.
+ * @return
+ *      The created string.
+ */
+QString ScriptConverter::byteArrayToUtf8String(QVector<unsigned char> data)
+{
+    return QString::fromUtf8((const char*)data.constData(), data.length());
 }
 
 /**
@@ -103,6 +110,9 @@ QVector<unsigned char> ScriptConverter::addStringToArray(QVector<unsigned char> 
 
 /**
  * Converts the first Bytes of a byte array to an uint16_t.
+ *
+ * Note: This functions works only if the return value is uint32_t (and not uint16_t).
+ *
  * @param data
  *      The byte array.
  * @param littleEndian
@@ -129,6 +139,9 @@ uint32_t ScriptConverter::byteArrayToUint16(QVector<unsigned char> data, bool li
 
 /**
  * Converts the first Bytes of a byte array to an uint32_t.
+ *
+ * Note: This functions works only if the return value is uint64_t (and not uint32_t).
+ *
  * @param data
  *      The byte array.
  * @param littleEndian
@@ -136,10 +149,10 @@ uint32_t ScriptConverter::byteArrayToUint16(QVector<unsigned char> data, bool li
  * @return
  *      The value.
  */
-uint32_t ScriptConverter::byteArrayToUint32(QVector<unsigned char> data, bool littleEndian)
+uint64_t ScriptConverter::byteArrayToUint32(QVector<unsigned char> data, bool littleEndian)
 {
     uint32_t value = 0;
-    if(data.length() >= 2)
+    if(data.length() >= 4)
     {
         if(littleEndian)
         {
@@ -181,6 +194,23 @@ uint64_t ScriptConverter::byteArrayToUint64(QVector<unsigned char> data, bool li
     }
     return value;
 }
+
+/**
+ * Converts an unsigned char to a signed char (int8_t).
+ *
+ * Note: This functions works only if the return value is int16_t (nd not int8_t).
+ *
+ * @param number
+ *      The number.
+ * @return
+ *      The converted number.
+ */
+int16_t ScriptConverter::unsignedCharToSignedChar(unsigned char number)
+{
+    int16_t result = (int8_t)number;
+    return result;
+}
+
 
 /**
  * Converts the first Bytes of a byte array to an int16_t.
@@ -394,7 +424,7 @@ QVector<unsigned char> ScriptConverter::addInt64ToArray(QVector<unsigned char> a
 }
 
 /**
- * Adds an float to a byte array.
+ * Adds a float to a byte array.
  * @param array
  *      The byte array.
  * @param value
@@ -409,7 +439,7 @@ QVector<unsigned char> ScriptConverter::addFloat32ToArray(QVector<unsigned char>
 }
 
 /**
- * Adds an float64 to a byte array.
+ * Adds a float64 to a byte array.
  * @param array
  *      The byte array.
  * @param value

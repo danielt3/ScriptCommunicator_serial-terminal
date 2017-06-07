@@ -1493,13 +1493,25 @@ CharClassify::cc Document::WordCharClass(unsigned char ch) const {
  * Used by commmands that want to select whole words.
  * Finds the start of word at pos when delta < 0 or the end of the word when delta >= 0.
  */
-int Document::ExtendWordSelect(int pos, int delta, bool onlyWordCharacters) {
+int Document::ExtendWordSelect(int pos, int delta, bool onlyWordCharacters, bool allowDot) {
 	CharClassify::cc ccStart = CharClassify::ccWord;
 	if (delta < 0) {
 		if (!onlyWordCharacters)
 			ccStart = WordCharClass(cb.CharAt(pos-1));
-		while (pos > 0 && (WordCharClass(cb.CharAt(pos - 1)) == ccStart))
+
+        CharClassify::cc tmp = WordCharClass(cb.CharAt(pos - 1));
+        while (pos > 0)
+        {
+            if(tmp != ccStart)
+            {
+                if(!(allowDot && (cb.CharAt(pos - 1) == '.')))
+                {
+                    break;
+                }
+            }
 			pos--;
+            tmp = WordCharClass(cb.CharAt(pos - 1));
+        }
 	} else {
 		if (!onlyWordCharacters && pos < Length())
 			ccStart = WordCharClass(cb.CharAt(pos));
@@ -2284,7 +2296,7 @@ public:
 	}
 };
 
-// Define a way for the Regular Expression code to access the document
+// Define a way for the Regular Node code to access the document
 class DocumentIndexer : public CharacterIndexer {
 	Document *pdoc;
 	int end;

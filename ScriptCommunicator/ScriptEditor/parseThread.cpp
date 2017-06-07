@@ -6,6 +6,8 @@
 #include <QTextStream>
 #include <QCoreApplication>
 
+
+
 /**
  * Returns the folder ich which the ScriptEditor files
  * are locared (api files).
@@ -21,9 +23,90 @@ QString getScriptEditorFilesFolder(void)
 #endif
 }
 
+/**
+ * Parses a single line from an api file and adds functions which return objects to m_functionsWithResultObjects.
+ *
+ * @param singleLine
+ *      The current line
+ * @return
+ *      True if the current entry is a property.
+ */
+void ParseThread::parseSingleLineForFunctionsWithResultObjects(QString& singleLine)
+{
+
+    QStringList split = singleLine.split(":");
+    if(split.length() >= 4)
+    {
+        FunctionWithResultObject element;
+        element.isArray = false;
+        element.isProperty = false;
+        QString className = split[0];
+        element.functionName = split[2];
+
+        QStringList resultType = singleLine.split("):");
+        element.resultType = (resultType.length() > 1) ? resultType[1] : split[3];
+
+        int index = element.functionName.indexOf("(");
+        if(index != -1)
+        {
+            element.functionName.remove(index + 1, element.functionName.length() - (index + 1));
+        }
+        else
+        {
+            element.isProperty = true;
+        }
+
+        index = element.resultType.indexOf("\\n");
+        if(index != -1)
+        {
+            element.resultType.remove(index, element.resultType.length() - index);
+
+            if(element.isProperty)
+            {
+                singleLine.replace(":" + element.resultType, "");
+            }
+            element.resultType.replace(" ", "");//Remove all spaces
+
+            if(element.resultType.startsWith("Array"))
+            {
+                element.isArray = true;
+
+                if(element.resultType == "Array")
+                {
+                    element.resultType = "Dummy";
+                }
+                else
+                {
+                    element.resultType.replace("Array<", "");
+                    element.resultType.replace(">", "");
+                }
+            }
+            else
+            {
+
+            }
+
+        }
+        else
+        {//Invalid entry.
+            return;
+        }
+
+
+        if(!m_functionsWithResultObjects.contains((className)))
+        {
+            m_functionsWithResultObjects[className] = QVector<FunctionWithResultObject>();
+        }
+
+
+        m_functionsWithResultObjects[className].append(element);
+    }
+
+}
+
 ParseThread::ParseThread(QObject *parent) : QThread(parent), m_autoCompletionApiFiles(), m_autoCompletionEntries(), m_objectAddedToCompletionList(false),
-    m_creatorObjects(), m_stringList(), m_unknownTypeObjects(), m_arrayList(), m_tableWidgets(),
-    m_tableWidgetObjects(), m_foundUiFiles(), m_parsedFiles()
+    m_creatorObjects(), m_unknownTypeObjects(), m_arrayList(), m_tableWidgets(),
+    m_tableWidgetObjects(), m_parsedUiFiles(), m_parsedUiFilesFromFile()
 {
     if(m_autoCompletionApiFiles.isEmpty())
     {
@@ -40,6 +123,8 @@ ParseThread::ParseThread(QObject *parent) : QThread(parent), m_autoCompletionApi
 
                 while(!singleEntry.isEmpty())
                 {
+                    parseSingleLineForFunctionsWithResultObjects(singleEntry);
+
                     //Add the current line to the api map.
                     m_autoCompletionApiFiles[fileName] << QString(singleEntry).replace("\\n", "\n");
                     singleEntry = in.readLine();
@@ -55,11 +140,13 @@ ParseThread::ParseThread(QObject *parent) : QThread(parent), m_autoCompletionApi
  */
 void ParseThread::run()
 {
+    QThread::setPriority(QThread::LowestPriority);
     exec();
 }
 
 /**
  * Removes in text all left of character.
+ *
  * @param text
  *      The string.
  * @param character
@@ -74,84 +161,15 @@ static inline void removeAllLeft(QString& text, QString character)
     }
 }
 
-/**
- * Searches a single object type.
- * @param className
- *      The class name.
- * @param searchString
- *      The search sring.
- * @param lines
- *      The lines in which shall be searched.
- */
-void ParseThread::searchSingleType(QString className, QString searchString, QStringList& lines, bool isArray,
-                                    bool withOutDotsAndBracked, bool replaceExistingEntry, bool matchExact)
-{
-    int index;
-    for(int i = 0; i < lines.length();i++)
-    {
-        index = lines[i].indexOf(searchString);
-        if(index != -1)
-        {
-            if(withOutDotsAndBracked)
-            {
-                if(lines[i].indexOf(".", index) != -1)
-                {
-                    continue;
-                }
-                if(lines[i].indexOf("[", index) != -1)
-                {
-                    continue;
-                }
-            }
-
-            if(matchExact)
-            {
-                if(lines[i].length() != (index + searchString.length()))
-                {
-                    continue;
-                }
-            }
-            QString objectName =  lines[i].left(index);
-
-            index = lines[i].indexOf("=");
-            if(index != -1)
-            {
-                objectName = lines[i].left(index);
-            }
-
-            removeAllLeft(objectName, "{");
-            removeAllLeft(objectName, ")");
-
-            bool containsInvalidChars = false;
-            for(auto character : objectName)
-            {
-                if(!character.isLetterOrNumber() && (character != '_') && (character != '[')
-                        && (character != ']'))
-                {
-                    containsInvalidChars = true;
-                    break;
-                }
-            }
-
-            if(containsInvalidChars)
-            {
-                continue;
-            }
-
-            addObjectToAutoCompletionList(objectName, className, false, isArray, replaceExistingEntry);
-        }
-    }
-}
 
 /**
  * Removes all unnecessary characters (e.g. comments).
+ *
  * @param currentText
  *      The text.
  */
 void ParseThread::removeAllUnnecessaryCharacters(QString& currentText)
 {
-
-
     //Remove all '/**/' comments.
     QRegExp comment("/\\*(.|[\r\n])*\\*/");
     comment.setMinimal(true);
@@ -170,39 +188,16 @@ void ParseThread::removeAllUnnecessaryCharacters(QString& currentText)
 }
 
 /**
- * Removes all square brackets and all between them.
- * @param currentText
- *      The text.
- */
-void ParseThread::removeAllBetweenSquareBrackets(QString& currentText)
-{
-    int index1 = 0;
-    int index2 = 0;
-    bool textRemoved = true;
-
-    while(textRemoved)
-    {
-        index1 = currentText.indexOf("[");
-        index2 = currentText.indexOf("]", index1);
-
-        if((index1 != -1) && (index2 != -1) && (index2 > index1))
-        {
-            currentText.remove(index1, (index2 - index1) + 1);
-        }
-        else
-        {
-            textRemoved = false;
-        }
-    }
-}
-/**
  * Parses a widget list from a user interface file (auto-completion).
+ *
+ * @param uiFileName
+ *      The user interface file.
  * @param docElem
  *      The QDomElement from the user interface file.
  * @param parseActions
  *      If true then all actions will be parsed. If false then all widgets will be parsed.
  */
-void ParseThread::parseWidgetList(QDomElement& docElem, bool parseActions)
+void ParseThread::parseWidgetList(QString uiFileName, QDomElement& docElem, bool parseActions)
 {
     QDomNodeList nodeList = docElem.elementsByTagName((parseActions) ? "addaction" : "widget");
 
@@ -277,10 +272,6 @@ void ParseThread::parseWidgetList(QDomElement& docElem, bool parseActions)
         {
             className = "ScriptAction";
         }
-        else if(className == QString("QStatusBar"))
-        {
-            className = "ScriptComboBox";
-        }
         else if(className == QString("QTabWidget"))
         {
             className = "ScriptTabWidget";
@@ -333,6 +324,22 @@ void ParseThread::parseWidgetList(QDomElement& docElem, bool parseActions)
         {
             className = "ScriptCalendarWidget";
         }
+        else
+        {
+            if(!m_autoCompletionApiFiles.contains(className + ".api"))
+            {//No API file for the current class.
+                className = "";
+            }
+        }
+
+        if(!m_parsedUiObjects.contains(uiFileName))
+        {
+            m_parsedUiObjects[uiFileName] = QStringList();
+        }
+        if(!m_parsedUiObjects[uiFileName].contains(objectName))
+        {
+            m_parsedUiObjects[uiFileName].append(objectName);
+        }
         addObjectToAutoCompletionList(objectName, className, true);
     }
 }
@@ -346,8 +353,13 @@ void ParseThread::parseWidgetList(QDomElement& docElem, bool parseActions)
  *      The class name.
  * @param isGuiElement
  *      True if the object is a GUI element.
+ * @param isArray
+ *      True if the object is an array.
+ * @param replaceExistingEntry
+ *      True if the object shall be replaced if m_autoCompletionEntries contains it already.
  */
-void ParseThread::addObjectToAutoCompletionList(QString& objectName, QString& className, bool isGuiElement, bool isArray, bool replaceExistingEntry)
+void ParseThread::addObjectToAutoCompletionList(QString objectName, QString className, bool isGuiElement,
+                                                bool isArray, bool replaceExistingEntry)
 {
     QString autoCompletionName = isGuiElement ? "UI_" + objectName : objectName;
 
@@ -432,16 +444,7 @@ void ParseThread::addObjectToAutoCompletionList(QString& objectName, QString& cl
             }
         }
 
-        if(className == "String")
-        {
-            int index = m_stringList.indexOf(autoCompletionName);
-            if(index != -1)
-            {
-                m_stringList.remove(index);
-            }
-            m_stringList.append(autoCompletionName);
-        }
-        else if(className == "ScriptTableWidget")
+        if(className == "ScriptTableWidget")
         {
             int index = m_tableWidgets.indexOf(autoCompletionName);
             if(index != -1)
@@ -449,11 +452,22 @@ void ParseThread::addObjectToAutoCompletionList(QString& objectName, QString& cl
                 m_tableWidgets.remove(index);
             }
             m_tableWidgets.append(autoCompletionName);
+
+            if(isArray)
+            {
+                className = "Array<" + className + ">";
+            }
+            m_creatorObjects[autoCompletionName] = className;
         }
         else
         {
             if((className != "Dummy"))
             {
+                if(isArray)
+                {
+                    className = "Array<" + className + ">";
+                }
+
                 m_creatorObjects[autoCompletionName] = className;
             }
         }
@@ -464,31 +478,46 @@ void ParseThread::addObjectToAutoCompletionList(QString& objectName, QString& cl
  * Parses an user interface file (auto-completion).
  * @param uiFileName
  *      The user interface file.
+ * @param fileContent
+ *      The file content.
  */
-void ParseThread::parseUiFile(QString uiFileName)
+void ParseThread::parseUiFile(QString uiFileName, QString fileContent)
 {
 
     QFile uiFile(uiFileName);
     QDomDocument doc("ui");
 
-    if(!m_parsedFiles.contains(uiFileName))
+    if(!m_parsedUiFiles.contains(uiFileName))
     {
-        m_parsedFiles.append(uiFileName);
+        m_parsedUiFiles.append(uiFileName);
 
-        if (uiFile.open(QFile::ReadOnly))
+        if(fileContent.isEmpty())
         {
-            if (doc.setContent(&uiFile))
+            //Load the file content.
+            if (uiFile.open(QFile::ReadOnly))
+            {
+                if (doc.setContent(&uiFile))
+                {
+                    QDomElement docElem = doc.documentElement();
+                    parseWidgetList(uiFileName, docElem, false);
+                    parseWidgetList(uiFileName, docElem, true);
+                }
+
+                uiFile.close();
+
+                QFileInfo fileInfo(uiFileName);
+                m_parsedUiFilesFromFile[uiFileName] = fileInfo.lastModified();
+            }
+        }
+        else
+        {
+            if (doc.setContent(fileContent))
             {
                 QDomElement docElem = doc.documentElement();
-                parseWidgetList(docElem, false);
-                parseWidgetList(docElem, true);
+                parseWidgetList(uiFileName, docElem, false);
+                parseWidgetList(uiFileName, docElem, true);
             }
 
-            uiFile.close();
-            if(!m_foundUiFiles.contains(uiFileName))
-            {
-                m_foundUiFiles.append(uiFileName);
-            }
         }
     }
 
@@ -497,8 +526,13 @@ void ParseThread::parseUiFile(QString uiFileName)
  * Checks if in the current document user interface files are loaded.
  * If user interface are loaded then they will be parsed and added to the auto-completion
  * list (m_autoCompletionEntries).
+ *
+ * @param currentText
+ *      The test which shall be parsed.
+ * @param activeDocumentPath
+ *      The path of the current documents (is used to create absolut pathes for scriptThread.loadUserInterfaceFile).
  */
-void ParseThread::checkDocumentForUiFiles(QString& currentText, QString& activeDocument)
+void ParseThread::checkDocumentForUiFiles(QString& currentText, QString currentDocumentPath)
 {
     int index;
 
@@ -537,537 +571,15 @@ void ParseThread::checkDocumentForUiFiles(QString& currentText, QString& activeD
 
         if(isRelativePath)
         {
-            uiFile = QFileInfo(activeDocument).absolutePath() + "/" + uiFile;
+            uiFile = QFileInfo(currentDocumentPath).absolutePath() + "/" + uiFile;
         }
 
-        parseUiFile(uiFile);
+        parseUiFile(uiFile, "");
         index = currentText.indexOf("scriptThread.loadUserInterfaceFile", index + 1);
 
     }
 }
 
-/**
- * Searches all dynamically created objects created by custom objects (like ScriptTimer).
- * @param currentText
- *      The text in which shall be searched.
- */
-void ParseThread::checkDocumentForCustomDynamicObjects(QStringList& lines, QStringList &linesWithBrackets , QString &currentText, int passNumber)
-{
-
-    if(passNumber == 1)
-    {
-        if(currentText.contains("=scriptThread."))
-        {
-            searchSingleType("ScriptUdpSocket", "=scriptThread.createUdpSocket(", lines);
-            searchSingleType("ScriptTcpServer", "=scriptThread.createTcpServer(", lines);
-            searchSingleType("ScriptTimer", "=scriptThread.createTimer(", lines);
-            searchSingleType("ScriptSerialPort", "=scriptThread.createSerialPort(", lines);
-            searchSingleType("ScriptCheetahSpi", "=scriptThread.createCheetahSpiInterface(", lines);
-            searchSingleType("ScriptPcanInterface", "=scriptThread.createPcanInterface(", lines);
-            searchSingleType("ScriptPlotWindow", "=scriptThread.createPlotWindow(", lines);
-            searchSingleType("ScriptXmlReader", "=scriptThread.createXmlReader(", lines);
-            searchSingleType("ScriptXmlWriter", "=scriptThread.createXmlWriter(", lines);
-            searchSingleType("Dummy", "=scriptThread.readBinaryFile(", lines, true);
-            searchSingleType("String", "=scriptThread.readDirectory(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.readAllStandardOutputFromProcess(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.readAllStandardErrorFromProcess(", lines, true);
-            searchSingleType("String", "=scriptThread.getLocalIpAdress(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.showGetIntDialog(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.showGetDoubleDialog(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.showColorDialog(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.getGlobalDataArray(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.getGlobalUnsignedNumber(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.getGlobalSignedNumber(", lines, true);
-            searchSingleType("Dummy", "=scriptThread.getGlobalRealNumber(", lines, true);
-            searchSingleType("String", "=scriptThread.availableSerialPorts(", lines, true);
-            searchSingleType("String", "=scriptThread.getScriptArguments(", lines, true);
-            searchSingleType("String", "=scriptThread.getAllObjectPropertiesAndFunctions(", lines, true);
-            searchSingleType("String", "=scriptThread.readFile(", lines);
-            searchSingleType("String", "=scriptThread.createAbsolutePath(", lines);
-            searchSingleType("String", "=scriptThread.getScriptFolder(", lines);
-            searchSingleType("String", "=scriptThread.showFileDialog(", lines);
-            searchSingleType("String", "=scriptThread.showDirectoryDialog(", lines);
-            searchSingleType("String", "=scriptThread.showTextInputDialog(", lines);
-            searchSingleType("String", "=scriptThread.showMultiLineTextInputDialog(", lines);
-            searchSingleType("String", "=scriptThread.showGetItemDialog(", lines);
-            searchSingleType("String", "=scriptThread.getGlobalString(", lines);
-            searchSingleType("String", "=scriptThread.getCurrentVersion(", lines);
-            searchSingleType("String", "=scriptThread.getScriptTableName(", lines);
-            searchSingleType("String", "=scriptThread.currentCpuArchitecture(", lines);
-            searchSingleType("String", "=scriptThread.productType(", lines);
-            searchSingleType("String", "=scriptThread.productVersion(", lines);
-            searchSingleType("String", "=scriptThread.getScriptCommunicatorFolder(", lines);
-            searchSingleType("String", "=scriptThread.getUserDocumentsFolder(", lines);
-            searchSingleType("String", "=scriptThread.getMainWindowTitle(", lines);
-            searchSingleType("ScriptTcpClient", "=scriptThread.createTcpClient(", lines);
-        }
-
-        if(currentText.contains("=conv."))
-        {
-            searchSingleType("String", "=conv.byteArrayToString(", lines);
-            searchSingleType("String", "=conv.byteArrayToHexString(", lines);
-            searchSingleType("Dummy", "=conv.stringToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addStringToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addUint16ToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addUint32ToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addUint64ToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addInt16ToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addInt32ToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addInt64ToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addFloat32ToArray(", lines, true);
-            searchSingleType("Dummy", "=conv.addFloat64ToArray(", lines, true);
-        }
-
-        if(currentText.contains("=seq."))
-        {
-            searchSingleType("String", "=seq.getGlobalString(", lines);
-            searchSingleType("Dummy", "=seq.getGlobalDataArray(", lines, true);
-            searchSingleType("Dummy", "=seq.getGlobalUnsignedNumber(", lines, true);
-            searchSingleType("Dummy", "=seq.getGlobalSignedNumber(", lines, true);
-            searchSingleType("String", "=seq.getCurrentVersion(", lines);
-            searchSingleType("String", "=seq.showTextInputDialog(", lines);
-            searchSingleType("String", "=seq.showMultiLineTextInputDialog(", lines);
-            searchSingleType("String", "=seq.showGetItemDialog(", lines);
-            searchSingleType("Dummy", "=seq.showGetIntDialog(", lines, true);
-            searchSingleType("Dummy", "=seq.showGetDoubleDialog(", lines, true);
-            searchSingleType("Dummy", "=seq.showColorDialog(", lines, true);
-            searchSingleType("String", "=seq.getAllObjectPropertiesAndFunctions(", lines, true);
-
-        }
-
-        if(currentText.contains("=scriptSql."))
-        {
-            searchSingleType("ScriptSqlDatabase", "=scriptSql.addDatabase(", lines);
-            searchSingleType("ScriptSqlDatabase", "=scriptSql.cloneDatabase(", lines);
-            searchSingleType("ScriptSqlDatabase", "=scriptSql.database(", lines);
-            searchSingleType("String", "=scriptSql.connectionNames(", lines, true);
-            searchSingleType("String", "=scriptSql.drivers(", lines, true);
-            searchSingleType("ScriptSqlQuery", "=scriptSql.createQuery(", lines);
-            searchSingleType("ScriptSqlField", "=scriptSql.createField(", lines);
-            searchSingleType("ScriptSqlRecord", "=scriptSql.createRecord(", lines);
-        }
-
-        if(currentText.contains("=cust."))
-        {
-            searchSingleType("String", "=cust.getScriptFolder(", lines);
-            searchSingleType("String", "=cust.readFile(", lines);
-            searchSingleType("Dummy", "=cust.readBinaryFile(", lines, true);
-            searchSingleType("String", "=cust.readDirectory(", lines, true);
-            searchSingleType("String", "=cust.createAbsolutePath(", lines);
-            searchSingleType("String", "=cust.getCurrentVersion(", lines);
-            searchSingleType("String", "=cust.getAllObjectPropertiesAndFunctions(", lines, true);
-            searchSingleType("ScriptXmlReader", "=cust.createXmlReader(", lines);
-            searchSingleType("ScriptXmlWriter", "=cust.createXmlWriter(", lines);
-        }
-
-
-        for(auto el : m_tableWidgets)
-        {
-            parseTableWidetInsert(el, lines);
-            searchSingleType("Dummy", "=" + el + ".getAllSelectedCells(", lines, true);
-            searchForScriptWidgetCommonFunctions(el, lines);
-        }
-
-        QStringList keys = m_tableWidgetObjects.keys();
-        for(int i = 0; i < keys.length(); i++)
-        {
-            searchSingleTableSubWidgets(keys[i], m_tableWidgetObjects.value(keys[i]), lines);
-        }
-
-    }//if(passNumber == 1)
-
-
-
-    QMap<QString, QString> tmpCreatorList = m_creatorObjects;
-    QMap<QString, QString>::iterator i;
-    for (i = tmpCreatorList.begin(); i != tmpCreatorList.end(); ++i)
-    {
-        if(passNumber == 1)
-        {
-            if(i.value() == "ScriptTreeWidget")
-            {
-                searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".createScriptTreeWidgetItem(", lines);
-                searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".invisibleRootItem(", lines);
-                searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".itemAbove(", lines);
-                searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".itemBelow(", lines);
-                searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".takeTopLevelItem(", lines);
-                searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".topLevelItem(", lines);
-                searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".currentItem(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptXmlReader")
-            {
-                searchSingleType("ScriptXmlElement", "=" + i.key() + ".getRootElement(", lines);
-                searchSingleType("ScriptXmlElement", "=" + i.key() + ".elementsByTagName(", lines, true);
-
-            }
-            else if(i.value() == "ScriptXmlWriter")
-            {
-
-                searchSingleType("String", "=" + i.key() + ".getInternalBuffer(", lines);
-            }
-            else if(i.value() == "ScriptSqlDatabase")
-            {
-                searchSingleType("ScriptSqlIndex", "=" + i.key() + ".primaryIndex(", lines);
-                searchSingleType("ScriptSqlRecord", "=" + i.key() + ".record(", lines);
-                searchSingleType("ScriptSqlQuery", "=" + i.key() + ".exec(", lines);
-                searchSingleType("ScriptSqlError", "=" + i.key() + ".lastError(", lines);
-                searchSingleType("String", "=" + i.key() + ".tables(", lines, true);
-
-                searchSingleType("String", "=" + i.key() + ".databaseName(", lines);
-                searchSingleType("String", "=" + i.key() + ".userName(", lines);
-                searchSingleType("String", "=" + i.key() + ".password(", lines);
-                searchSingleType("String", "=" + i.key() + ".hostName(", lines);
-                searchSingleType("String", "=" + i.key() + ".driverName(", lines);
-                searchSingleType("String", "=" + i.key() + ".connectOptions(", lines);
-                searchSingleType("String", "=" + i.key() + ".connectionName(", lines);
-            }
-            else if(i.value() == "ScriptTcpServer")
-            {
-                searchSingleType("ScriptTcpClient", "=" + i.key() + ".nextPendingConnection(", lines);
-
-            }
-            else if(i.value() == "ScriptCheetahSpi")
-            {
-                searchSingleType("Dummy", "=" + i.key() + ".readAll(", lines, true);
-                searchSingleType("String", "=" + i.key() + ".readAllLines(", lines, true);
-
-                searchSingleType("String", "=" + i.key() + ".detectDevices(", lines);
-            }
-            else if(i.value() == "ScriptSerialPort")
-            {
-                searchSingleType("Dummy", "=" + i.key() + ".readAll(", lines, true);
-                searchSingleType("String", "=" + i.key() + ".readAllLines(", lines, true);
-
-                searchSingleType("String", "=" + i.key() + ".portName(", lines);
-                searchSingleType("String", "=" + i.key() + ".parity(", lines);
-                searchSingleType("String", "=" + i.key() + ".stopBits(", lines);
-                searchSingleType("String", "=" + i.key() + ".flowControl(", lines);
-                searchSingleType("String", "=" + i.key() + ".errorString(", lines);
-                searchSingleType("String", "=" + i.key() + ".readLine(", lines);
-            }
-            else if(i.value() == "ScriptUdpSocket")
-            {
-                searchSingleType("Dummy", "=" + i.key() + ".readDatagram(", lines, true);
-                searchSingleType("Dummy", "=" + i.key() + ".readAll(", lines, true);
-                searchSingleType("String", "=" + i.key() + ".readAllLines(", lines, true);
-
-                searchSingleType("String", "=" + i.key() + ".readLine(", lines);
-            }
-            else if(i.value() == "ScriptPcanInterface")
-            {
-                searchSingleType("Dummy", "=" + i.key() + ".getCanParameter(", lines, true);
-
-                searchSingleType("String", "=" + i.key() + ".getStatusString(", lines);
-            }
-            else if(i.value() == "ScriptSplitter")
-            {
-                searchSingleType("Dummy", "=" + i.key() + ".sizes(", lines, true);
-
-            }
-            else if(i.value() == "QWebView")
-            {
-
-                searchSingleType("String", "=" + i.key() + ".url(", lines);
-                searchSingleType("String", "=" + i.key() + ".selectedHtml(", lines);
-                searchSingleType("String", "=" + i.key() + ".selectedText(", lines);
-                searchSingleType("String", "=" + i.key() + ".title(", lines);
-            }
-            else if(i.value() == "ScriptAction")
-            {
-
-                searchSingleType("String", "=" + i.key() + ".text(", lines);
-            }
-            else if(i.value() == "ScriptButton")
-            {
-                searchSingleType("String", "=" + i.key() + ".text(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptCalendarWidget")
-            {
-                searchSingleType("String", "=" + i.key() + ".getSelectedDate(", lines);
-                searchSingleType("String", "=" + i.key() + ".getDateFormat(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptCheckBox")
-            {
-                searchSingleType("String", "=" + i.key() + ".text(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptComboBox")
-            {
-                searchSingleType("String", "=" + i.key() + ".currentText(", lines);
-                searchSingleType("String", "=" + i.key() + ".itemText(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptDateEdit")
-            {
-                searchSingleType("String", "=" + i.key() + ".getDate(", lines);
-                searchSingleType("String", "=" + i.key() + ".getDisplayFormat(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptDateTimeEdit")
-            {
-                searchSingleType("String", "=" + i.key() + ".getDateTime(", lines);
-                searchSingleType("String", "=" + i.key() + ".getDisplayFormat(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptDial")
-            {
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptDialog")
-            {
-                searchSingleType("String", "=" + i.key() + ".windowPositionAndSize(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptDoubleSpinBox")
-            {
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptFontComboBox")
-            {
-                searchSingleType("String", "=" + i.key() + ".currentText(", lines);
-                searchSingleType("String", "=" + i.key() + ".itemText(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptGroupBox")
-            {
-                searchSingleType("String", "=" + i.key() + ".title(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-                searchSingleType("ScriptPlotWidget",  "=" + i.key() + ".addPlotWidget(", lines);
-                searchSingleType("ScriptCanvas2DWidget",  "=" + i.key() + ".addCanvas2DWidget(", lines);
-            }
-            else if(i.value() == "ScriptLabel")
-            {
-                searchSingleType("String", "=" + i.key() + ".text(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptLineEdit")
-            {
-                searchSingleType("String", "=" + i.key() + ".text(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptListWidget")
-            {
-                searchSingleType("String", "=" + i.key() + ".getItemText(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptMainWindow")
-            {
-                searchSingleType("String", "=" + i.key() + ".windowPositionAndSize(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptPlotWindow")
-            {
-                searchSingleType("String", "=" + i.key() + ".windowPositionAndSize(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptProgressBar")
-            {
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptRadioButton")
-            {
-                searchSingleType("String", "=" + i.key() + ".text(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptSlider")
-            {
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptSpinBox")
-            {
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptStatusBar")
-            {
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptTabWidget")
-            {
-                searchSingleType("String", "=" + i.key() + ".tabText(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptTextEdit")
-            {
-                searchSingleType("String", "=" + i.key() + ".toPlainText(", lines);
-                searchSingleType("String", "=" + i.key() + ".toHtml(", lines);
-                searchSingleType("String", "=" + i.key() + ".replaceNonHtmlChars(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptTimeEdit")
-            {
-                searchSingleType("String", "=" + i.key() + ".getTime(", lines);
-                searchSingleType("String", "=" + i.key() + ".getDisplayFormat(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptTimer")
-            {
-
-            }
-            else if(i.value() == "ScriptToolBox")
-            {
-                searchSingleType("String", "=" + i.key() + ".itemText(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptToolButton")
-            {
-                searchSingleType("String", "=" + i.key() + ".text(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-            else if(i.value() == "ScriptWidget")
-            {
-                searchSingleType("String", "=" + i.key() + ".windowPositionAndSize(", lines);
-                searchForScriptWidgetCommonFunctions(i.key(), lines);
-            }
-
-        }//if(passNumber == 1)
-
-        if(i.value() == "ScriptTreeWidgetItem")
-        {
-            searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".takeChild(", lines);
-            searchSingleType("ScriptTreeWidgetItem", "=" + i.key() + ".parent(", lines);
-            searchForScriptWidgetCommonFunctions(i.key(), lines);
-            searchSingleType("String", "=" + i.key() + ".text(", lines);
-            searchSingleType("String", "=" + i.key() + ".data(", lines);
-        }
-        else if(i.value() == "ScriptXmlElement")
-        {
-            searchSingleType("ScriptXmlElement", "=" + i.key() + ".childElements(", lines, true);
-            searchSingleType("String", "=" + i.key() + ".childTextElements(", lines, true);
-            searchSingleType("String", "=" + i.key() + ".childCDataElements(", lines, true);
-            searchSingleType("String", "=" + i.key() + ".childCommentElements(", lines, true);
-            searchSingleType("ScriptXmlAttribute", "=" + i.key() + ".attributes(", lines, true);
-
-            searchSingleType("String", "=" + i.key() + ".elementName(", lines);
-            searchSingleType("String", "=" + i.key() + ".attributeValue(", lines);
-        }
-        else if(i.value() == "ScriptXmlAttribute")
-        {
-
-            searchSingleType("String", "=" + i.key() + ".value(", lines);
-            searchSingleType("String", "=" + i.key() + ".name(", lines);
-        }
-        else if(i.value() == "ScriptSqlQuery")
-        {
-            searchSingleType("ScriptSqlError", "=" + i.key() + ".lastError(", lines);
-            searchSingleType("ScriptSqlRecord", "=" + i.key() + ".record(", lines);
-
-            searchSingleType("String", "=" + i.key() + ".lastQuery(", lines);
-            searchSingleType("String", "=" + i.key() + ".executedQuery(", lines);
-        }
-        else if(i.value() == "ScriptSqlRecord")
-        {
-            searchSingleType("ScriptSqlField", "=" + i.key() + ".field(", lines);
-            searchSingleType("ScriptSqlRecord", "=" + i.key() + ".keyValues(", lines);
-
-            searchSingleType("String", "=" + i.key() + ".fieldName(", lines);
-        }
-        else if(i.value() == "ScriptSqlError")
-        {
-
-            searchSingleType("String", "=" + i.key() + ".driverText(", lines);
-            searchSingleType("String", "=" + i.key() + ".databaseText(", lines);
-            searchSingleType("String", "=" + i.key() + ".nativeErrorCode(", lines);
-            searchSingleType("String", "=" + i.key() + ".text(", lines);
-        }
-        else if(i.value() == "ScriptSqlField")
-        {
-
-            searchSingleType("String", "=" + i.key() + ".name(", lines);
-        }
-        else if(i.value() == "ScriptSqlIndex")
-        {
-
-            searchSingleType("String", "=" + i.key() + ".cursorName(", lines);
-            searchSingleType("String", "=" + i.key() + ".name(", lines);
-        }
-        else if(i.value() == "ScriptTcpClient")
-        {
-            searchSingleType("Dummy", "=" + i.key() + ".readAll(", lines, true);
-            searchSingleType("String", "=" + i.key() + ".readAllLines(", lines, true);
-
-            searchSingleType("String", "=" + i.key() + ".getErrorString(", lines);
-            searchSingleType("String", "=" + i.key() + ".readLine(", lines);
-        }
-        else if(i.value() == "ScriptPlotWidget")
-        {
-            searchForScriptWidgetCommonFunctions(i.key(), lines);
-        }
-        else if(i.value() == "Date")
-        {
-            searchSingleType("String", "=" + i.key() + ".toString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toDateString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toTimeString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toLocaleString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toLocaleDateString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toLocaleTimeString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toUTCString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toISOString(", lines);
-            searchSingleType("String", "=" + i.key() + ".toJSON(", lines);
-        }
-
-        searchSingleType(i.value(), "=" + i.key(), linesWithBrackets, m_arrayList.contains(i.key()), true, false, true);
-        searchSingleType(i.value(), "=" + i.key() + "[", linesWithBrackets);
-    }
-}
-
-/**
- * Searches objects which are returned by a ScriptTableWidget.
- * @param objectName
- *      The object name of the ScriptTableWidget.
- * @param subObjects
- *      All objects which have been created by the current ScriptTableWidget (ScriptTableWidget::insertWidget).
- * @param lines
- *      The lines in which shall be searched.
- */
-void ParseThread::searchSingleTableSubWidgets(QString objectName, QVector<TableWidgetSubObject> subObjects, QStringList& lines)
-{
-    int index;
-    QString searchString = objectName+ ".getWidget";
-    for(int i = 0; i < lines.length();i++)
-    {
-
-        index = lines[i].indexOf(searchString);
-        if(index != -1)
-        {
-            QString objectName =  lines[i].left(index);
-
-            index = lines[i].indexOf("=");
-            if(index != -1)
-            {
-                objectName = lines[i].left(index);
-            }
-
-            removeAllLeft(objectName, "{");
-            removeAllLeft(objectName, ")");
-
-            index = lines[i].indexOf("(", index);
-            int endIndex = lines[i].indexOf(")", index);
-            if((index != -1) && (endIndex != -1))
-            {
-                QString args = lines[i].mid(index + 1, endIndex - (index + 1));
-                QStringList list = args.split(",");
-                if(list.length() >= 2)
-                {
-                    bool isOk;
-                    int row = list[0].toUInt(&isOk);
-                    int column = list[1].toUInt(&isOk);
-
-                    //Search the corresponding widget in subObjects.
-                    for(int j = 0; j < subObjects.length(); j++)
-                    {
-                        if((row == subObjects[j].row) && (column == subObjects[j].column))
-                        {
-                            addObjectToAutoCompletionList(objectName, subObjects[j].className, false);
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 /**
  * Searches all ScriptTableWidget::insertWidgets calls of a specific ScriptTableWidget object.
@@ -1076,7 +588,7 @@ void ParseThread::searchSingleTableSubWidgets(QString objectName, QVector<TableW
  * @param lines
  *      The lines in which shall be searched.
  */
-void ParseThread::parseTableWidetInsert(const QString objectName, QStringList lines)
+void ParseThread::parseTableWidgetInsert(const QString objectName, QStringList lines)
 {
     int index;
     for(int i = 0; i < lines.length();i++)
@@ -1156,6 +668,10 @@ void ParseThread::parseTableWidetInsert(const QString objectName, QStringList li
                     {
                         subObject.className  = "ScriptDial";
                     }
+                    else
+                    {
+                        subObject.className = "";
+                    }
 
                     if(m_tableWidgetObjects.contains(objectName))
                     {
@@ -1169,7 +685,6 @@ void ParseThread::parseTableWidetInsert(const QString objectName, QStringList li
                         m_tableWidgetObjects[objectName] = vect;
                     }
 
-
                 }
             }
 
@@ -1178,164 +693,631 @@ void ParseThread::parseTableWidetInsert(const QString objectName, QStringList li
 }
 
 /**
- * Searches for functions which habe all ScriptWidgets in common.
- * @param objectName
- *      The object name.
- * @param lines
- *      The script lines.
+ * Replace the object in entries type (if objects contains it).
+ *
+ * @param objects
+ *      The parsed objects.
+ * @param entry
+ *      The entry.
  */
-void ParseThread::searchForScriptWidgetCommonFunctions(const QString& objectName, QStringList& lines)
+void ParseThread::replaceAllParsedObject(QMap<QString, ParsedEntry>& objects, ParsedEntry& entry)
 {
-    searchSingleType("String", "=" + objectName + ".getAdditionalData(", lines);
-    searchSingleType("String", "=" + objectName + ".getClassName(", lines);
+    QString tmpType = entry.valueType;
+    QString tmpCompleteName = entry.completeName;
+    int index = tmpCompleteName.lastIndexOf(".");
+    while(index != -1)
+    {
+        tmpCompleteName.remove(index, tmpCompleteName.length() - index);
+        tmpType = tmpCompleteName + "." + entry.valueType;
+
+        if(objects.contains(tmpType))
+        {
+            entry.valueType = tmpType;
+            break;
+        }
+        index = tmpCompleteName.lastIndexOf(".");
+    }
+
+    if(objects.contains(entry.valueType))
+    {//The assigned object is in the objects list.
+
+        //Add all subelements of the assigned variable/object to the current variable.
+        entry.subElements = objects[entry.valueType].subElements;
+
+        //Add the current variable to the autocompletion list.
+        addParsedEntiresToAutoCompletionList(entry, m_autoCompletionEntries, "", entry.completeName);
+    }
+
+    for(int i = 0; i < entry.subElements.size(); i++)
+    {
+        replaceAllParsedObject(objects, entry.subElements[i]);
+    }
 }
 
 /**
- * Searches all dynamically created objects created by standard objects (like String).
- * @param currentText
- *      The text in which shall be searched.
+ * Replaces a type of an entry with the correspondig parsed type.
+ *
+ * @param parsedTypes
+ *      The parsed types.
+ * @param entry
+ *      The entry.
+ * @param parentName
+ *      The complete name of entries parent.
+ * @return
  */
-void ParseThread::checkDocumentForStandardDynamicObjects(QStringList& lines, QStringList &linesWithBrackets, int passNumber)
+bool ParseThread::replaceAllParsedTypes(QMap<QString, QString>& parsedTypes, ParsedEntry& entry,
+                                        QString parentName)
 {
-    if(passNumber == 1)
+    bool entryChanged = false;
+
+    entry.completeName = (parentName.isEmpty()) ? entry.name : parentName + "::"  + entry.name;
+
+
+    /******************************Look in the upper contexts for the type***************************/
+    QString tmpType = entry.valueType;
+    QString tmpCompleteName = entry.completeName;
+    tmpCompleteName.replace("::", ".");
+    int index = tmpCompleteName.lastIndexOf(".");
+    while(index != -1)
     {
-        searchSingleType("Dummy", "=Array(", linesWithBrackets, true);
-        searchSingleType("Dummy", "=newArray(", linesWithBrackets, true);
+        tmpCompleteName.remove(index, tmpCompleteName.length() - index);
+        tmpType = tmpCompleteName + "." + entry.valueType;
 
-        searchSingleType("Date", "=Date(", linesWithBrackets);
-        searchSingleType("Date", "=newDate(", linesWithBrackets);
+        if(parsedTypes.contains(tmpType))
+        {
+            if(!parsedTypes[tmpType].isEmpty())
+            {
+                entry.valueType = parsedTypes[tmpType];
+                if(entry.isObjectArrayIndex)
+                {//Array element.
+                    entry.valueType.replace("Array<", "");
+                    entry.valueType.replace(">", "");
+                }
+                tmpType = "";
+                break;
+            }
+        }
 
-        searchSingleType("String", "=\"", linesWithBrackets);
-        searchSingleType("String", "='", linesWithBrackets);
+        index = tmpCompleteName.lastIndexOf(".");
+    }
+    /********************************************************************************************************/
+
+    if(!tmpType.isEmpty())
+    {//The type was not found in an upper context.
+
+        if(parsedTypes.contains(entry.valueType))
+        {
+            if(!parsedTypes[entry.valueType].isEmpty())
+            {
+                entry.valueType = parsedTypes[entry.valueType];
+
+                if(entry.isObjectArrayIndex)
+                {//Array element.
+                    entry.valueType.replace("Array<", "");
+                    entry.valueType.replace(">", "");
+                }
+            }
+        }
     }
 
-    QVector<QString> tmpList = m_stringList;
-    for(auto el : tmpList)
+
+    if (entry.valueType.indexOf(".") != -1)
     {
-        searchSingleType("String", "=" + el + ".toString(", lines);
-        searchSingleType("String", "=" + el + ".valueOf(", lines);
-        searchSingleType("String", "=" + el + ".charAt(", lines);
-        searchSingleType("String", "=" + el + ".concat(", lines);
-        searchSingleType("String", "=" + el + ".match(", lines, true);
-        searchSingleType("String", "=" + el + ".replace(", lines);
-        searchSingleType("String", "=" + el + ".slice(", lines);
-        searchSingleType("String", "=" + el + ".split(", lines, true);
-        searchSingleType("String", "=" + el + ".substring(", lines);
-        searchSingleType("String", "=" + el + ".toLowerCase(", lines);
-        searchSingleType("String", "=" + el + ".toLocaleLowerCase(", lines);
-        searchSingleType("String", "=" + el + ".toUpperCase(", lines);
-        searchSingleType("String", "=" + el + ".toLocaleUpperCase(", lines);
-        searchSingleType("String", "=" + el + ".trim(", lines);
-        searchSingleType("String", "=" + el + ".fromCharCode(", lines);
+        QStringList split = entry.valueType.split(".");
 
-        searchSingleType("String", "=" + el, linesWithBrackets, m_arrayList.contains(el), true, false, true);
-        searchSingleType("String", "=" + el + "[", linesWithBrackets);
+        //Look for UI elements created with a table widget.
+        if((split.size() >= 2) && m_tableWidgets.contains(split[0]))
+        {
+            if(split[1] == "getWidget()")
+            {
+                bool isOk;
+                int row = entry.additionalInformation[0].toInt(&isOk);
+                int column = entry.additionalInformation[1].toInt(&isOk);
+                QVector<TableWidgetSubObject> tableWidgetObjects = m_tableWidgetObjects[split[0]];
+                for(auto el : tableWidgetObjects)
+                {
+                    if((row == el.row) && (column == el.column))
+                    {
+                        split.pop_front();
+                        split.pop_front();
+                        split.push_front(el.className);
+                        entry.valueType = "";
 
+                        for(auto splitEl : split)
+                        {
+                            entry.valueType += splitEl + ".";
+                        }
+                        //Remove the last '.'.
+                        entry.valueType.remove(entry.valueType.size() - 1, 1);
+                        m_creatorObjects[entry.completeName] = entry.valueType;
+
+
+                        return true;
+                    }
+                }
+            }
+        }
+
+        /**********************************************************************************************/
+        //Check if the object in the type of entry is declared in the same contex as entry
+        //(in this case m_creatorObjects contains this object).
+        QString creatorName = entry.completeName;
+        int tmpIndex = creatorName.lastIndexOf(entry.name);
+        if(tmpIndex != -1)
+        {
+            creatorName.remove(tmpIndex, creatorName.length() - index);
+            creatorName += split[0];
+        }
+
+        if (!m_creatorObjects.contains(creatorName))
+        {
+            creatorName = "";
+
+            for(int i = 0; i < (split.size() - 1); i++)
+            {
+                creatorName += split[i];
+
+                if(i < (split.size() - 2))
+                {
+                    creatorName += "::";
+                }
+            }
+        }
+        /**********************************************************************************************/
+
+        QString arrayType;
+        //Check if m_creatorObjects contains the object in the type of entry.
+        if (m_creatorObjects.contains(creatorName))
+        {
+            split[0] = m_creatorObjects[creatorName];
+            split[1] = split[split.size() - 1];
+            bool isArrayIndex = false;
+            if(entry.isObjectArrayIndex)
+            {
+                isArrayIndex = true;
+            }
+
+            if(split[0].startsWith("Array<"))
+            {
+                split[0].replace("Array<", "");
+                split[0].replace(">", "");
+
+                if(!isArrayIndex)
+                {
+                    arrayType = split[0];
+                    split[0] = "Array";
+                }
+            }
+        }
+
+         //Check if m_functionsWithResultObjects contains the object in the type of entry.
+        if(m_functionsWithResultObjects.contains(split[0]))
+        {
+            split[1].replace("()", "");
+
+            for(int i = 0; i < m_functionsWithResultObjects[split[0]].size(); i++)
+            {
+                if((m_functionsWithResultObjects[split[0]][i].functionName == (split[1] + "(")) ||
+                    (m_functionsWithResultObjects[split[0]][i].functionName == split[1]))
+                {
+                    bool isArray = m_functionsWithResultObjects[split[0]][i].isArray;
+                    if(entry.isFunctionArrayIndex)
+                    {
+                        isArray = false;
+
+                    }
+
+                    QString resultType = m_functionsWithResultObjects[split[0]][i].resultType;
+                    if((resultType == "Dummy") && !arrayType.isEmpty())
+                    {
+                        resultType = arrayType;
+                    }
+
+                    addObjectToAutoCompletionList(entry.completeName, resultType, false,
+                            isArray, true);
+
+                    entry.valueType = "";
+
+                    if(isArray)
+                    {
+                        entry.valueType = "Array<";
+                    }
+                    entry.valueType += resultType;
+
+                    if(isArray)
+                    {
+                        entry.valueType += ">";
+                    }
+
+                    if(entry.valueType == "Array<Dummy>")
+                    {
+                        entry.valueType = "Array";
+                    }
+
+                    entryChanged = true;
+
+                    m_creatorObjects[entry.completeName] = entry.valueType;
+
+                }
+            }
+        }
+
+    }
+    else
+    {
+        QString valueType = entry.valueType;
+        bool isArray = false;
+
+        if(entry.valueType.startsWith("Array"))
+        {
+            isArray = true;
+            valueType = entry.valueType;
+
+            if(valueType == "Array")
+            {
+                valueType = "Array";
+                isArray = false;
+            }
+            else
+            {
+                valueType.replace("Array<", "");
+                valueType.replace(">", "");
+            }
+
+        }
+
+        if (m_autoCompletionApiFiles.contains(valueType + ".api"))
+        {
+            addObjectToAutoCompletionList(entry.completeName, valueType, false, isArray);
+        }
+        else if (m_creatorObjects.contains(entry.valueType))
+        {
+            addObjectToAutoCompletionList(entry.completeName, m_creatorObjects[valueType], false, isArray);
+            entry.valueType = m_creatorObjects[valueType];
+            entryChanged = true;
+        }
 
     }
 
-    tmpList = m_arrayList;
-    for(auto el : tmpList)
+    //Call replaceAllParsedTypes for all sub elements.
+    for(int i = 0; i < entry.subElements.size(); i++)
     {
-        searchSingleType("Dummy", "=" + el + ".concat(", lines, true);
-        searchSingleType("Dummy", "=" + el + ".slice(", lines, true);
-        searchSingleType("Dummy", "=" + el + ".splice(", lines, true);
-        searchSingleType("Dummy", "=" + el + ".map(", lines, true);
-        searchSingleType("Dummy", "=" + el + ".filter(", lines, true);
-        searchSingleType("Dummy", "=" + el + ".filter(", lines, true);
-        searchSingleType("Dummy", "=" + el, linesWithBrackets, true, true,false, true);
+        if(replaceAllParsedTypes(parsedTypes, entry.subElements[i], entry.completeName))
+        {
+            entryChanged = true;
+        }
+    }
 
-        searchSingleType("String", "=" + el + ".toString(", lines);
-        searchSingleType("String", "=" + el + ".toLocaleString(", lines);
-        searchSingleType("String", "=" + el + ".join(", lines);
+    return entryChanged;
+}
+
+/**
+ * Creates the complete name of an entry (includes all parents).
+ *
+ * @param entry
+ *      The entry.
+ * @param parent
+ *      The parent entry.
+ */
+static void createCompleteName(ParsedEntry& entry, ParsedEntry& parent)
+{
+    entry.completeName = parent.completeName.isEmpty() ? entry.name : parent.completeName + "." + entry.name;
+
+    for(int i = 0; i < entry.subElements.size(); i++)
+    {
+        createCompleteName(entry.subElements[i], entry);
     }
 }
 
+/**
+ * Returns all functions and gloabl variables in the loaded script files.
+ *
+ * @param loadedScripts
+ *      The loaded scripts.
+ * @return
+ *      All parsed entries.
+ */
+QMap<int,QVector<ParsedEntry>> ParseThread::getAllFunctionsAndGlobalVariables(QMap<int, QString> loadedScripts)
+{
+    QMap<int,QVector<ParsedEntry>> result;
+
+    QMap<int, QString>::const_iterator iter = loadedScripts.constBegin();
+    QMap<QString, QVector<ParsedEntry>> prototypeFunctions;
+    QMap<QString, ParsedEntry> objects;
+
+    //Parse all files.
+    while (iter != loadedScripts.constEnd())
+    {
+        QVector<ParsedEntry> fileResult;
+        esprima::Pool pool;
+        esprima::Program *program = NULL;
+        try
+        {
+            program = esprima::parse(pool, iter.value().toLocal8Bit().constData());
+        }
+        catch(esprima::ParseError e)
+        {
+            ParsedEntry entry;
+            entry.line = e.lineNumber;
+            entry.type = PARSED_ENTRY_TYPE_PARSE_ERROR;
+            entry.tabIndex = iter.key();
+            entry.name = e.description.c_str();
+            entry.isFunctionArrayIndex = false;
+            entry.isObjectArrayIndex = false;
+            fileResult.append(entry);
+            result[iter.key()] = fileResult;
+            iter++;
+            continue;
+        }
+
+        //Parse the complete File.
+        for(int i = 0; i < program->body.size(); i++)
+        {
+            ParsedEntry entry;
+            esprima::VariableDeclaration* varDecl = dynamic_cast<esprima::VariableDeclaration*>(program->body[i]);
+            if(varDecl)
+            {
+                ParsedEntry dummyParent;
+                parseEsprimaVariableDeclaration( varDecl, dummyParent, entry, iter.key(), &objects);
+
+                //Append the current entry to the file result list.
+                fileResult.append(entry);
+
+            }//if(varDecl)
+            else
+            {
+                if(checkForControlStatements(program->body[i], entry, iter.key(), &objects))
+                {
+                    for(auto el : entry.subElements)
+                    {
+                        fileResult.append(el);
+                    }
+                }
+                else
+                {
+                    esprima::FunctionDeclaration* funcDecl = dynamic_cast<esprima::FunctionDeclaration*>(program->body[i]);
+                    if(funcDecl)
+                    {//Function
+
+                        ParsedEntry dummyParent;
+                        parseEsprimaFunctionDeclaration(funcDecl, &dummyParent, &entry, iter.key(), &objects);
+                        fileResult.append(entry);
+                        objects[entry.name] = entry;
+                    }
+                    else
+                    {
+                        checkForPrototypFunction(program->body[i], iter.key(), &objects,prototypeFunctions);
+                    }
+                }
+            }
+        }
+
+
+
+        if(!fileResult.isEmpty())
+        {
+            //Add the result for the current file to the result list.
+            result[iter.key()] = fileResult;
+        }
+
+        iter++;
+
+    }//while (iter != loadedScripts.constEnd())
+
+
+    QMap<QString, QString> parsedTypes;
+    for(int i = 0; i < result.size(); i++)
+    {
+        //Add the prototyp function to their correspondig objects/classes and
+        //add the parsed entries to the autocompletion list.
+        for(int j = 0; j < result[i].size(); j++)
+        {
+
+            if(prototypeFunctions.contains(result[i][j].name))
+            {//The current object/class has prototype functions.
+
+                //Add the prototyp function to the current objects/classes
+                for (int index = 0; index < prototypeFunctions[result[i][j].name].length(); index++)
+                {
+                    createCompleteName(prototypeFunctions[result[i][j].name][index], result[i][j]);
+                    result[i][j].subElements.append(prototypeFunctions[result[i][j].name][index]);
+                }
+            }
+
+            //Remove the prototype functions.
+            prototypeFunctions.remove(result[i][j].name);
+
+            if(result[i][j].type != PARSED_ENTRY_TYPE_VAR)
+            {
+                //Add the parsed entries to the autocompletion list.
+                addParsedEntiresToAutoCompletionList(result[i][j], m_autoCompletionEntries, "", result[i][j].name);
+            }
+            else
+            {
+                if(!result[i][j].params.isEmpty())
+                {//The the declaration of the current variable has an assignement of another variable/object
+                 //e.g. var map2 = map1;
+
+                    if(objects.contains(result[i][j].params[0]))
+                    {//The assigned object is in the objects list.
+
+                        //Add all subelements of the assigned variable/object to the current variable.
+                        result[i][j].subElements = objects[result[i][j].params[0]].subElements;
+
+                        //Add the current variable to the autocompletion list.
+                        addParsedEntiresToAutoCompletionList(result[i][j], m_autoCompletionEntries, "", result[i][j].name);
+                    }
+
+                    if(m_tableWidgets.contains(result[i][j].valueType))
+                    {
+
+                        m_tableWidgets.append(result[i][j].name);
+                        m_tableWidgetObjects[result[i][j].name] = m_tableWidgetObjects[result[i][j].valueType];
+                        result[i][j].valueType = "ScriptTableWidget";
+                    }
+
+                    result[i][j].valueType = result[i][j].params[0];
+
+                }
+            }
+        }
+
+        for(auto el : result[i])
+        {
+            getAllParsedTypes(parsedTypes, el, "");
+        }
+    }
+
+    for(int i = 0; i < result.size(); i++)
+    {
+        for(int j = 0; j < result[i].size(); j++)
+        {
+            replaceAllParsedObject(objects, result[i][j]);
+        }
+    }
+
+
+
+    bool entryChanged = false;
+    do
+    {
+        entryChanged = false;
+        for(int i = 0; i < result.size(); i++)
+        {
+            for(int j = 0; j < result[i].size(); j++)
+            {
+                if(replaceAllParsedTypes(parsedTypes, result[i][j], ""))
+                {
+                    entryChanged = true;
+                }
+            }
+        }
+    }while(entryChanged);
+
+    return result;
+}
 /**
  * Parses the current text. Emits parsingFinishedSignal if the parsing is finished.
- * @param currentText
- *      The text which shall be parsed.
- * @param activeDocument
- *      The name of the active document.
+ * @param loadedUiFiles
+ *      All loaded ui files.
+ * @param loadedScripts
+ *      All loaded scripts.
+ * @param loadedScriptsIndex
+ *      The (tab) indexes of the loaded scripts.
+ * @param loadedFileChanged
+ *      True if the loaded files have been changed.
+ * @param parseOnlyUIFiles
+ *      True of only UI files shall be parsed.
  */
-void ParseThread::parseSlot(QString& currentText, QString activeDocument)
+void ParseThread::parseSlot(QMap<QString, QString> loadedUiFiles, QMap<int, QString> loadedScripts,
+                            QMap<int, QString> loadedScriptsIndex, bool loadedFileChanged, bool parseOnlyUIFiles)
 {
+
     //Clear all parsed objects (all but m_autoCompletionApiFiles).
     m_autoCompletionEntries.clear();
     m_creatorObjects.clear();
     m_tableWidgetObjects.clear();
-    m_parsedFiles.clear();
-    m_stringList.clear();
+    m_parsedUiObjects.clear();
+    m_parsedUiFiles.clear();
     m_arrayList.clear();
     m_tableWidgets.clear();
     m_unknownTypeObjects.clear();
 
-
     QRegExp splitRegexp("[\n;]");
+
+
+    bool uiFileChanged = false;
+
+    //Creates a string which contains the text of all loaded scripts.
+    QMap<QString, QDateTime>::const_iterator timeIter = m_parsedUiFilesFromFile.constBegin();
+    while (timeIter != m_parsedUiFilesFromFile.constEnd())
+    {
+        QFileInfo fileInfo(timeIter.key());
+        if(fileInfo.lastModified() != timeIter.value())
+        {
+            uiFileChanged = true;
+            parseOnlyUIFiles = false;
+            break;
+        }
+
+        timeIter++;
+    }
+
+    if(parseOnlyUIFiles && !loadedFileChanged && !uiFileChanged)
+    {//Nothing changed.
+        emit parsingFinishedSignal(QMap<QString, QStringList>(), QMap<QString, QStringList>(), QMap<QString, QStringList>(),
+                                   QMap<int,QVector<ParsedEntry>>(), false, parseOnlyUIFiles);
+        return;
+    }
+    m_parsedUiFilesFromFile.clear();
+
+
+    QString currentText;
+    //Creates a string which contains the text of all loaded scripts.
+    QMap<int, QString>::const_iterator iter = loadedScripts.constBegin();
+    while (iter != loadedScripts.constEnd())
+    {
+        currentText += iter.value();
+        iter++;
+    }
 
     //Remove all unnecessary characters (e.g. comments).
     removeAllUnnecessaryCharacters(currentText);
 
-    //Get all lines (with square brackets).
-    QStringList linesWithBrackets = currentText.split(splitRegexp);
-
-    //Remove all brackets and all between them.
-    removeAllBetweenSquareBrackets(currentText);
-
     //Get all lines (without square brackets).
     QStringList lines = currentText.split(splitRegexp);
 
-    //Parse all found user interface files (check for changes).
-    for(auto el : m_foundUiFiles)
+    //Parse all loaded ui files.
+    QMap<QString, QString>::const_iterator iterUi  = loadedUiFiles.constBegin();
+    while (iterUi != loadedUiFiles.constEnd())
     {
-        parseUiFile(el);
+        parseUiFile(iterUi.key(), iterUi.value());
+        iterUi++;
     }
 
-    //Check if the active document has a ui-file.
-    QString uiFileName = MainWindow::getTheCorrespondingUiFile(activeDocument);
-    if(!uiFileName.isEmpty())
+    //Check if the loaded documents have a ui-file.
+    iter = loadedScripts.constBegin();
+    while (iter != loadedScripts.constEnd())
     {
-        parseUiFile(uiFileName);
+        QString uiFileName = MainWindow::getTheCorrespondingUiFile(loadedScriptsIndex[iter.key()]);
+        if(!uiFileName.isEmpty())
+        {
+            parseUiFile(uiFileName, "");
+        }
+        iter++;
     }
 
     //Find all included user interface files.
-    checkDocumentForUiFiles(currentText, activeDocument);
-
-    int counter = 1;
-    do
+    iter = loadedScripts.constBegin();
+    while (iter != loadedScripts.constEnd())
     {
-        m_objectAddedToCompletionList = false;
-
-        //Call several times to get all objects created by dynamic objects.
-        checkDocumentForCustomDynamicObjects(lines, linesWithBrackets, currentText, counter);
-        counter++;
-    }while(m_objectAddedToCompletionList);
-
-
-    counter = 1;
-    do
-    {
-        m_objectAddedToCompletionList = false;
-
-        //Call several times to get all objects created by dynamic objects.
-        checkDocumentForStandardDynamicObjects(lines, linesWithBrackets, counter);
-        counter++;
-    }while(m_objectAddedToCompletionList);
-
-
-    //Search all objects with an unknown type.
-    searchSingleType("Dummy", "=", lines);
-
-
-    //Add all objects with an unknown type.
-    for(auto el : m_unknownTypeObjects)
-    {
-        if(!m_autoCompletionEntries.contains(el))
-        {
-            m_autoCompletionEntries[el] << el;
-        }
+        checkDocumentForUiFiles(currentText,loadedScriptsIndex[iter.key()]);
+        iter++;
     }
 
-    emit parsingFinishedSignal(m_autoCompletionEntries, m_autoCompletionApiFiles);
+
+    QMap<int,QVector<ParsedEntry>> parsedEntries;
+    if(!parseOnlyUIFiles)
+    {
+        //Search for GUI elements created by a table widget.
+        for(auto el : m_tableWidgets)
+        {
+            parseTableWidgetInsert(el, lines);
+        }
+        //Get all global function and variables (with the esprima parser).
+        parsedEntries = getAllFunctionsAndGlobalVariables(loadedScripts);
+
+        //Add all objects with an unknown type.
+        for(auto el : m_unknownTypeObjects)
+        {
+            if(!m_autoCompletionEntries.contains(el))
+            {
+                m_autoCompletionEntries[el] << el;
+            }
+        }
+
+    }
+
+   emit parsingFinishedSignal(m_autoCompletionEntries, m_autoCompletionApiFiles, m_parsedUiObjects, parsedEntries, true, parseOnlyUIFiles);
 }
 

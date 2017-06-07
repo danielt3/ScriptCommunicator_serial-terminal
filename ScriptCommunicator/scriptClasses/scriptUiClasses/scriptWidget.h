@@ -41,7 +41,8 @@ class ScriptWidget: public QObject, public ScriptObject
     Q_PROPERTY(QString publicScriptElements READ getPublicScriptElements)
 
 public:
-    ScriptWidget(QWidget* widget, ScriptThread *scriptThread, ScriptWindow* scriptWindow) : m_scriptWindow(scriptWindow), m_widget(widget)
+    ScriptWidget(QWidget* widget, ScriptThread *scriptThread, ScriptWindow* scriptWindow) :
+        m_scriptWindow(scriptWindow), m_scriptThread(scriptThread), m_widget(widget)
     {
 
         if(QThread::currentThread() == scriptThread->thread())
@@ -67,6 +68,7 @@ public:
             connect(this, SIGNAL(closeSignal()), widget, SLOT(close()), Qt::QueuedConnection);
             connect(this, SIGNAL(hideSignal()), widget, SLOT(hide()), Qt::QueuedConnection);
             connect(this, SIGNAL(setWindowTitleSignal(QString)), widget, SLOT(setWindowTitle(QString)), Qt::QueuedConnection);
+            connect(this, SIGNAL(setWindowIconSignal(QString, QWidget*)), scriptWindow, SLOT(setWindowIconSlot(QString, QWidget*)), Qt::QueuedConnection);
 
             connect(this, SIGNAL(setWindowPositionAndSizeSignal(QString, QWidget*)),
                     scriptWindow, SLOT(setWindowPositionAndSizeSlot(QString, QWidget*)), directConnectionType);
@@ -92,26 +94,15 @@ public:
                     scriptWindow, SLOT(setWindowFlagsSlot(Qt::WindowFlags,QWidget*)), directConnectionType);
 
             connect(this, SIGNAL(setFocusSignal()), m_widget, SLOT(setFocus()), Qt::QueuedConnection);
+
+            connect(this, SIGNAL(createShortCutSignal(QString,QWidget*,QShortcut**)),
+                    scriptWindow, SLOT(createShortCutSlot(QString,QWidget*,QShortcut**)), directConnectionType);
         }
     }
     ///Returns a semicolon separated list with all public functions, signals and properties.
     virtual QString getPublicScriptElements(void)
     {
-        return "void setEnabled(bool isEnabled);void update(void);"
-                "void repaint(void);void show(void);"
-                "void close(void);void hide(void);"
-                "void setWindowTitle(QString title);QString windowPositionAndSize(void);"
-                "void setWindowPositionAndSize(QString positionAndSize);void setBackgroundColor(QString color);"
-                "void setWindowTextColor(QString color);void setTextColor(QString color);"
-                "void setPaletteColor(QString palette, QString color);setPaletteColorRgb(quint8 red, quint8 green, quint8 blue, QString palette);"
-                "void setToolTip(QString text, int duration);bool isVisible(void);"
-                "void raise(void);void lower(void));"
-                "void setWindowFlags(quint32 flags);void clearWindowFlags(quint32 flags);"
-                "quint32 windowFlags(void);void setFocus(void);"
-                "int width(void);int height(void);"
-                "QWidget* getWidgetPointer(void);void setAdditionalData(int key, QString data);"
-                "QString getAdditionalData(int key);bool blockSignals(bool block);"
-                "QString getClassName(void)";
+        return MainWindow::parseApiFile("ScriptWidget.api");
     }
 
     ///Enables or disables the widget.
@@ -229,7 +220,33 @@ public:
     ///Returns the class name of this object.
     Q_INVOKABLE QString getClassName(void){return metaObject()->className();}
 
+    ///Returns the name of this object (UI_'object name in the ui file').
+    ///Note: This function returns only a not empty string for GUI elements from ui files (standard GUI elements).
+    ///For GUI elements created with ScriptTableWidget::insertWidget the object name must be set with setObjectName.
+    Q_INVOKABLE QString getObjectName(void){return QObject::objectName();}
 
+    ///Sets the name of the current object (can be retrieved with getObjectName).
+    Q_INVOKABLE void setObjectName(QString name){QObject::setObjectName(name);}
+
+    ///Sets the window icon of a dialog or a main window.
+    ///Supported formats: .ico, .gif, .png, .jpeg, .tiff, .bmp, .icns.
+    Q_INVOKABLE void setWindowIcon(QString iconFile, bool isRelativePath=true)
+    {
+        iconFile = isRelativePath ? m_scriptThread->createAbsolutePath(iconFile) : iconFile;
+        emit setWindowIconSignal(iconFile, m_widget);
+    }
+
+    ///Creates a shortcut and connects it to a script function.
+    Q_INVOKABLE void createShortCut(QString keys, QScriptValue scriptFunction)
+    {
+        QShortcut* shortCut;
+        emit createShortCutSignal(keys, m_widget, &shortCut);
+        if (!qScriptConnect(shortCut, SIGNAL(activated()), QScriptValue(), scriptFunction))
+        {
+            m_scriptThread->getScriptEngine()->currentContext()->throwError("could not find function: " + scriptFunction.toString());
+
+        }
+    }
 
 Q_SIGNALS:
 
@@ -300,9 +317,20 @@ Q_SIGNALS:
     ///This signal is private and must not be used inside a script.
     void setScriptGuiElementColorRgbSignal(quint8 red, quint8 green,quint8 blue, QWidget* element, QString colorRole);
 
+    ///This signal is emitted in setWindowIcon.
+    ///This signal is private and must not be used inside a script.
+    void setWindowIconSignal(QString iconFile, QWidget* widget);
+
+    ///This signal is emitted in createShortCut.
+    ///This signal is private and must not be used inside a script.
+    void createShortCutSignal(QString key, QWidget* parent, QShortcut** shortCut);
+
 protected:
     ///Script window pointer.
     ScriptWindow* m_scriptWindow;
+
+    ///Pointer to the script thread;
+    ScriptThread* m_scriptThread;
 private:
     ///The wrapped widget.
     QWidget* m_widget;
